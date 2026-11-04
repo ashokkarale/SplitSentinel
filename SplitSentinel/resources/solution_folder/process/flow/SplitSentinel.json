@@ -1,0 +1,38 @@
+{
+  "docVersion": "1.0.0",
+  "resource": {
+    "name": "SplitSentinel",
+    "kind": "process",
+    "type": "flow",
+    "apiVersion": "orchestrator.uipath.com/v1",
+    "projectKey": "dbd9ac3b-385b-4eff-b569-bd27e562b0c4",
+    "dependencies": [
+      {
+        "kind": "package",
+        "name": "SplitSentinel"
+      }
+    ],
+    "runtimeDependencies": [],
+    "folders": [
+      {
+        "fullyQualifiedName": "solution_folder"
+      }
+    ],
+    "spec": {
+      "runtimeProfile": "Standard",
+      "type": "Flow",
+      "name": "SplitSentinel",
+      "package": {
+        "key": "191ae6aa-a5f4-4b7c-bca3-9dd7bd5de480"
+      },
+      "targetFrameworkValue": "Portable",
+      "retentionAction": "Delete",
+      "retentionPeriod": 30,
+      "staleRetentionAction": "Delete",
+      "staleRetentionPeriod": 180
+    },
+    "locks": [],
+    "key": "4004a185-f7b9-41fd-b22d-213d0d8eee69",
+    "files": []
+  }
+}

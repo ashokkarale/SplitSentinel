@@ -1,0 +1,5 @@
+tierId,minAmount,maxAmount,approverRole,quotesRequired,rfqRequired
+T1,0,100000,LineManager,1,false
+T2,100000,500000,DeptHead,3,false
+T3,500000,2500000,CFO,3,true
+T4,2500000,,CFOCommittee,3,true

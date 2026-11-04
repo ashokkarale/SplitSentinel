@@ -1,0 +1,17 @@
+vendorId,name,category,isRecurring,contactEmail
+V001,Nimbus Systems,IT Hardware,false,sales@nimbussystems.example
+V002,Vertex Devices,IT Hardware,false,sales@vertexdevices.example
+V003,Orbit Peripherals,IT Hardware,false,sales@orbitperipherals.example
+V004,PaperTrail Supplies,Stationery,true,sales@papertrailsupplies.example
+V005,SparkClean Services,Facilities,true,sales@sparkcleanservices.example
+V006,Chai Point Pantry,Pantry,true,sales@chaipointpantry.example
+V007,SwiftRoute Couriers,Courier,true,sales@swiftroutecouriers.example
+V008,Inkwell Print House,Marketing,false,sales@inkwellprinthouse.example
+V009,Gather Events,Events,false,sales@gatherevents.example
+V010,Oakline Furniture,Furniture,false,sales@oaklinefurniture.example
+V011,Urban Facility Services,Facilities,false,sales@urbanfacilityservices.example
+V012,CloudNest Software,Software,false,sales@cloudnestsoftware.example
+V013,Bytecraft Licensing,Software,false,sales@bytecraftlicensing.example
+V014,Skyway Travels,Travel,false,sales@skywaytravels.example
+V015,Shakti Electricals,Electrical,false,sales@shaktielectricals.example
+V016,Pixel Accessories,IT Hardware,false,sales@pixelaccessories.example

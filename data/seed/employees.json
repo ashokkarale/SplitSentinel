@@ -1,0 +1,227 @@
+[
+  {
+    "employeeId": "E401",
+    "name": "Rohan Malhotra",
+    "email": "rohan.malhotra@splitsentinel.example",
+    "managerId": null,
+    "costCenter": "CC-FIN",
+    "approvalLimit": 2500000,
+    "role": "CFO"
+  },
+  {
+    "employeeId": "E301",
+    "name": "Kavita Bose",
+    "email": "kavita.bose@splitsentinel.example",
+    "managerId": "E401",
+    "costCenter": "CC-IT",
+    "approvalLimit": 500000,
+    "role": "DeptHead"
+  },
+  {
+    "employeeId": "E302",
+    "name": "Manish Tiwari",
+    "email": "manish.tiwari@splitsentinel.example",
+    "managerId": "E401",
+    "costCenter": "CC-OPS",
+    "approvalLimit": 500000,
+    "role": "DeptHead"
+  },
+  {
+    "employeeId": "E303",
+    "name": "Shalini Pillai",
+    "email": "shalini.pillai@splitsentinel.example",
+    "managerId": "E401",
+    "costCenter": "CC-FIN",
+    "approvalLimit": 500000,
+    "role": "DeptHead"
+  },
+  {
+    "employeeId": "E304",
+    "name": "Ajay Saxena",
+    "email": "ajay.saxena@splitsentinel.example",
+    "managerId": "E401",
+    "costCenter": "CC-MKT",
+    "approvalLimit": 500000,
+    "role": "DeptHead"
+  },
+  {
+    "employeeId": "E201",
+    "name": "Nikhil Bansal",
+    "email": "nikhil.bansal@splitsentinel.example",
+    "managerId": "E301",
+    "costCenter": "CC-IT",
+    "approvalLimit": 100000,
+    "role": "LineManager"
+  },
+  {
+    "employeeId": "E202",
+    "name": "Ritu Chawla",
+    "email": "ritu.chawla@splitsentinel.example",
+    "managerId": "E302",
+    "costCenter": "CC-OPS",
+    "approvalLimit": 100000,
+    "role": "LineManager"
+  },
+  {
+    "employeeId": "E203",
+    "name": "Gaurav Khanna",
+    "email": "gaurav.khanna@splitsentinel.example",
+    "managerId": "E303",
+    "costCenter": "CC-FIN",
+    "approvalLimit": 100000,
+    "role": "LineManager"
+  },
+  {
+    "employeeId": "E204",
+    "name": "Divya Menon",
+    "email": "divya.menon@splitsentinel.example",
+    "managerId": "E304",
+    "costCenter": "CC-MKT",
+    "approvalLimit": 100000,
+    "role": "LineManager"
+  },
+  {
+    "employeeId": "E501",
+    "name": "Harish Patil",
+    "email": "harish.patil@splitsentinel.example",
+    "managerId": "E401",
+    "costCenter": "CC-FIN",
+    "approvalLimit": 0,
+    "role": "Audit"
+  },
+  {
+    "employeeId": "E601",
+    "name": "Sneha Kulkarni",
+    "email": "sneha.kulkarni@splitsentinel.example",
+    "managerId": "E302",
+    "costCenter": "CC-OPS",
+    "approvalLimit": 0,
+    "role": "ProcurementOps"
+  },
+  {
+    "employeeId": "E101",
+    "name": "Priya Sharma",
+    "email": "priya.sharma@splitsentinel.example",
+    "managerId": "E201",
+    "costCenter": "CC-IT",
+    "approvalLimit": 100000,
+    "role": "Requester"
+  },
+  {
+    "employeeId": "E102",
+    "name": "Rahul Verma",
+    "email": "rahul.verma@splitsentinel.example",
+    "managerId": "E202",
+    "costCenter": "CC-OPS",
+    "approvalLimit": 100000,
+    "role": "Requester"
+  },
+  {
+    "employeeId": "E103",
+    "name": "Anita Desai",
+    "email": "anita.desai@splitsentinel.example",
+    "managerId": "E203",
+    "costCenter": "CC-FIN",
+    "approvalLimit": 100000,
+    "role": "Requester"
+  },
+  {
+    "employeeId": "E104",
+    "name": "Farhan Qureshi",
+    "email": "farhan.qureshi@splitsentinel.example",
+    "managerId": "E202",
+    "costCenter": "CC-OPS",
+    "approvalLimit": 100000,
+    "role": "Requester"
+  },
+  {
+    "employeeId": "E105",
+    "name": "Neha Kapoor",
+    "email": "neha.kapoor@splitsentinel.example",
+    "managerId": "E204",
+    "costCenter": "CC-MKT",
+    "approvalLimit": 100000,
+    "role": "Requester"
+  },
+  {
+    "employeeId": "E106",
+    "name": "Arjun Mehta",
+    "email": "arjun.mehta@splitsentinel.example",
+    "managerId": "E204",
+    "costCenter": "CC-MKT",
+    "approvalLimit": 100000,
+    "role": "Requester"
+  },
+  {
+    "employeeId": "E107",
+    "name": "Kiran Rao",
+    "email": "kiran.rao@splitsentinel.example",
+    "managerId": "E202",
+    "costCenter": "CC-OPS",
+    "approvalLimit": 100000,
+    "role": "Requester"
+  },
+  {
+    "employeeId": "E108",
+    "name": "Vikram Singh",
+    "email": "vikram.singh@splitsentinel.example",
+    "managerId": "E203",
+    "costCenter": "CC-FIN",
+    "approvalLimit": 100000,
+    "role": "Requester"
+  },
+  {
+    "employeeId": "E109",
+    "name": "Suresh Nair",
+    "email": "suresh.nair@splitsentinel.example",
+    "managerId": "E202",
+    "costCenter": "CC-OPS",
+    "approvalLimit": 100000,
+    "role": "Requester"
+  },
+  {
+    "employeeId": "E110",
+    "name": "Meera Iyer",
+    "email": "meera.iyer@splitsentinel.example",
+    "managerId": "E204",
+    "costCenter": "CC-MKT",
+    "approvalLimit": 100000,
+    "role": "Requester"
+  },
+  {
+    "employeeId": "E111",
+    "name": "Deepak Joshi",
+    "email": "deepak.joshi@splitsentinel.example",
+    "managerId": "E201",
+    "costCenter": "CC-IT",
+    "approvalLimit": 100000,
+    "role": "Requester"
+  },
+  {
+    "employeeId": "E112",
+    "name": "Pooja Reddy",
+    "email": "pooja.reddy@splitsentinel.example",
+    "managerId": "E203",
+    "costCenter": "CC-FIN",
+    "approvalLimit": 100000,
+    "role": "Requester"
+  },
+  {
+    "employeeId": "E113",
+    "name": "Sanjay Gupta",
+    "email": "sanjay.gupta@splitsentinel.example",
+    "managerId": "E202",
+    "costCenter": "CC-OPS",
+    "approvalLimit": 100000,
+    "role": "Requester"
+  },
+  {
+    "employeeId": "E114",
+    "name": "Lata Krishnan",
+    "email": "lata.krishnan@splitsentinel.example",
+    "managerId": "E204",
+    "costCenter": "CC-MKT",
+    "approvalLimit": 100000,
+    "role": "Requester"
+  }
+]

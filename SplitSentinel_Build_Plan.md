@@ -115,7 +115,7 @@ Organisations enforce an **approval matrix**: purchases above certain amounts ne
 | A5 | Action Center | Human tasks | ✅ Done | `uip tasks list` works; a `QuickFormTask` created by a workflow was completed on 2026-07-24 |
 | A6 | Integration Service connector for notifications | Notifications, requester justification | ✅ Done | *Gmail Connection* (`uipath-google-gmail`) = Enabled (default). Use Gmail for all emails |
 | A7 | GitHub account (public repo) | Share solution files | ✅ Done | GitHub CLI 2.103.3 installed and signed in. Public repo [ashokkarale/SplitSentinel](https://github.com/ashokkarale/SplitSentinel) created; local repo `main` pushed. Commits use the GitHub noreply address. `.gitignore` excludes `.venv/`, `SmokeTest/` and secrets |
-| A8 | UiPath Forum account | Submission | ☐ You | Sign in at forum.uipath.com with the same UiPath account and confirm you can post in the challenge category |
+| A8 | UiPath Forum account | Submission | ✅ Done | Checked by hand 2026-11-04: signed in at forum.uipath.com and confirmed posting access to the challenge category |
 
 **Other findings**
 - **Unused licences:** 1 Unattended Robot and 1 Test Automation Unattended Robot are allocated. SplitSentinel doesn't need them.
@@ -132,7 +132,7 @@ Organisations enforce an **approval matrix**: purchases above certain amounts ne
 - [x] Run one agent call (A3). Done 2026-11-04: agent answered correctly
 - [ ] Nov 5: recheck units used: `uip platform licenses consumables get --mode daily --tenant DefaultTenant --unit RU --start-date 2026-11-01 --end-date 2026-11-30` (repeat with `--unit AGU` and `--unit PLTU`)
 - [x] Create the public GitHub repo `SplitSentinel` and push the first commit (closes A7). Done 2026-11-04
-- [ ] **You:** sign in at forum.uipath.com and confirm you can post in the challenge category (closes A8)
+- [x] Sign in at forum.uipath.com and confirm you can post in the challenge category (closes A8). Done 2026-11-04, checked by hand
 
 ### 4.2 Tools on the PC
 | # | Tool | Purpose |
@@ -147,22 +147,30 @@ Organisations enforce an **approval matrix**: purchases above certain amounts ne
 | T8 | Draw.io / Excalidraw / Mermaid | Architecture diagram |
 
 ### 4.3 Assets we must create
-| # | Asset | Section |
-|---|---|---|
-| D1 | Data Service entities (6) | §7 |
-| D2 | Approval matrix records | §8 |
-| D3 | Procurement policy document (agent grounding) | §8 |
-| D4 | Seed data: ~80 PRs, ~15 vendors, ~20 employees, 3 blanket POs | §9 |
-| D5 | Rule-engine script + unit tests | §10 |
-| D6 | Agent: system prompt, input/output schema, evaluation set | §11 |
-| D7 | Maestro Flow (main) | §12 |
-| D8 | Action Center task form(s) | §13 |
-| D9 | Requester justification form / email template | §13 |
-| D10 | Notification templates (approved, held, consolidated, escalated) | §12 |
-| D11 | Evaluation results sheet (before/after tuning) | §15 |
-| D12 | Architecture diagram | §5 |
-| D13 | Demo video (3–5 min) | §18 |
-| D14 | README + "How I built it with Claude Code" write-up | §16, §19 |
+
+> Status as of 2026-11-05.
+
+| # | Asset | Section | Status | Where / evidence |
+|---|---|---|---|---|
+| D1 | Data Service entities (6) | §7 | ✅ Done | Tenant-level: Employee, Vendor, BlanketPO, ApprovalMatrix, PurchaseRequisition, SplitCase. Schema in `data/entities.schema.json` / `data/entities.md` (enumerations are `STRING`, not choice sets) |
+| D2 | Approval matrix records | §8 | ✅ Done | 4 tiers imported (T1–T4) |
+| D3 | Procurement policy document (agent grounding) | §8 | ✅ Done | `data/policy/procurement-policy.md`, inlined into the agent's system prompt at compile time |
+| D4 | Seed data: ~80 PRs, ~15 vendors, ~20 employees, 3 blanket POs | §9 | ✅ Done | `data/generate-seed.js` → 78 PRs, 16 vendors, 25 employees, 3 blanket POs; all imported, 0 errors; 9 planted scenarios self-checked |
+| D5 | Rule-engine script + unit tests | §10 | ✅ Done | `rules/score.js` + `rules/score.test.js` (15/15 pass) |
+| D6 | Agent: system prompt, input/output schema, evaluation set | §11 | ✅ Done | `agent/system-prompt.md`, `agent/output-schema.json`, `agent/evals/eval-set.json` (19 cases), `agent/evals/run-rule-evals.js` |
+| D7 | Maestro Flow (main) | §12 | ✅ Core done | `SplitSentinel/` solution, Maestro Automate. `check` 0/0, `validate` Valid with no warnings; cloud runs pass (see D11). **Not yet:** Data Fabric event trigger, Gmail notifications |
+| D8 | Action Center task form(s) | §13 | ✅ Done | Approver review quick form (4 outcomes + comment), proven live: task created, completed, Flow resumed |
+| D9 | Requester justification form / email template | §13 | ⚠️ Built, not run live | Quick form in the Flow (Explain / Consolidate); no seed case has triggered it yet (the agent chose direct review) |
+| D10 | Notification templates (approved, held, consolidated, escalated) | §12 | ✅ Done | `templates/notifications.md` (sending not wired yet, see D7) |
+| D11 | Evaluation results sheet (before/after tuning) | §15 | ⚠️ Partial | `docs/evaluation-results.md`: rule layer 9/9; cloud runs T1, T2, T3, T7, T14 pass. Remaining cases and before/after tuning still to run |
+| D12 | Architecture diagram | §5 | ✅ Done | `docs/architecture.mmd` (Mermaid) |
+| D13 | Demo video (3–5 min) | §18 | ☐ You | Record after the remaining Flow pieces are in |
+| D14 | README + "How I built it with Claude Code" write-up | §16, §19 | ✅ Done | `README.md`, `docs/claude-code-log.md` |
+
+**Design changes found while building** (also in `AGENTS.md`):
+- Maestro Flow human tasks have no timeout or SLA, so the 24 h / 48 h escalations move to Action Center settings.
+- Data Fabric read nodes have no error port, so a failed read faults the run (still fail-closed) instead of retrying ×3.
+- Priya's scenario changed to 3 × ₹95k (each T1, combined T2), so the split actually avoids a tier.
 
 ---
 

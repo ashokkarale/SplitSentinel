@@ -1,0 +1,12 @@
+{
+    "DocVersion": "1.0.0",
+    "StudioMinVersion": "2025.10.0",
+    "SolutionId": "6bca9279-6cbc-400e-1c70-08df39aec1f5",
+    "Projects": [
+        {
+            "Type": "Flow",
+            "ProjectRelativePath": "SplitSentinel/project.uiproj",
+            "Id": "dbd9ac3b-385b-4eff-b569-bd27e562b0c4"
+        }
+    ]
+}

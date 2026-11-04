@@ -1,0 +1,24 @@
+{
+  "description": "Labelled SplitSentinel scenarios. Seed-backed cases run against data/seed; anchorPrId is the PR passed to the Flow's manual entry point. 'split' means verdict SPLIT or LIKELY_SPLIT.",
+  "cases": [
+    { "id": "T1", "anchorPrId": "PR-2081", "scenario": "CLEAN", "expect": { "route": "RELEASE", "agentCalled": false, "finalStatus": "Released" } },
+    { "id": "T2", "anchorPrId": "PR-2003", "scenario": "PRIYA_LAPTOPS", "expect": { "route": "AGENT_HUMAN_REQUIRED", "agentCalled": true, "split": true, "verdictIn": ["SPLIT"], "requiredApprovalTier": "T2", "relatedPrIds": ["PR-2001", "PR-2002", "PR-2003"], "path": "APPROVER_REVIEW" } },
+    { "id": "T3", "anchorPrId": "PR-2013", "scenario": "APOLLO_KIT", "expect": { "route": "AGENT", "agentCalled": true, "split": true, "verdictIn": ["SPLIT", "LIKELY_SPLIT"], "requiredApprovalTier": "T2", "relatedPrIds": ["PR-2011", "PR-2012", "PR-2013"], "path": "APPROVER_REVIEW_OR_JUSTIFICATION" } },
+    { "id": "T4", "anchorPrId": "PR-2025", "scenario": "STATIONERY", "expect": { "route": "RELEASE", "agentCalled": false, "finalStatus": "Released" } },
+    { "id": "T5", "anchorPrId": "PR-2034", "scenario": "BLANKET_CALLOFFS", "expect": { "route": "RELEASE", "agentCalled": false, "finalStatus": "Released" } },
+    { "id": "T6", "anchorPrId": "PR-2042", "scenario": "MKT_COLLUSION", "expect": { "route": "AGENT", "agentCalled": true, "split": true, "verdictIn": ["SPLIT", "LIKELY_SPLIT"], "requiredApprovalTier": "T3", "competitiveBidRequired": true, "path": "APPROVER_REVIEW_OR_JUSTIFICATION" } },
+    { "id": "T7", "anchorPrId": "PR-2052", "scenario": "SEPARATE_PROJECTS", "expect": { "route": "AGENT", "agentCalled": true, "split": false, "verdictIn": ["NOT_SPLIT"], "legitException": "SEPARATE_PROJECT", "finalStatus": "Released" } },
+    { "id": "T8", "anchorPrId": "PR-2065", "scenario": "HABITUAL", "requesterJustification": "PR-2064 is a one-time purchase of 10 seats of the reporting tool for month-end close, owned by the reporting team. PR-2065 is the annual budgeting platform subscription for FP&A, a different product from a different vendor, renewed every November.", "expect": { "agentCalled": true, "split": false, "verdictIn": ["NOT_SPLIT"], "legitException": "SEPARATE_PROJECT" } },
+    { "id": "T9", "anchorPrId": "PR-2042", "scenario": "MKT_COLLUSION", "requesterJustification": "It was urgent and we always raise these separately.", "expect": { "agentCalled": true, "split": true, "verdictIn": ["SPLIT", "LIKELY_SPLIT"], "path": "APPROVER_REVIEW" } },
+    { "id": "T10", "anchorPrId": "PR-2003", "scenario": "PRIYA_LAPTOPS", "simulate": { "dataFabricRead": "fail" }, "expect": { "path": "UNVERIFIED_HOLD", "finalStatus": "Unverified", "agentCalled": false } },
+    { "id": "T11", "anchorPrId": "PR-2013", "scenario": "APOLLO_KIT", "simulate": { "agentOutput": "invalid", "times": 2 }, "expect": { "agentVerdict": "FAILED", "path": "APPROVER_REVIEW" } },
+    { "id": "T12", "anchorPrId": "PR-2003", "scenario": "PRIYA_LAPTOPS", "simulate": { "agentOutput": { "verdict": "NOT_SPLIT", "legitException": "NONE", "suggestedAction": "APPROVE" } }, "expect": { "path": "APPROVER_REVIEW", "guardrail": true } },
+    { "id": "T13", "anchorPrId": "PR-2003", "scenario": "PRIYA_LAPTOPS", "simulate": { "approverTask": "timeout" }, "expect": { "humanDecision": "ESCALATED" } },
+    { "id": "T14", "anchorPrId": "PR-2003", "scenario": "PRIYA_LAPTOPS", "simulate": { "existingSplitCase": true }, "expect": { "path": "SKIPPED" } },
+    { "id": "T15", "anchorPrId": "PR-2072", "scenario": "EMERGENCY", "expect": { "route": "AGENT", "agentCalled": true, "split": false, "verdictIn": ["NOT_SPLIT"], "legitException": "EMERGENCY", "finalStatus": "Released" } },
+    { "id": "T16", "anchorPrId": "PR-2065", "scenario": "HABITUAL", "expect": { "route": "AGENT", "agentCalled": true, "split": true, "verdictIn": ["SPLIT", "LIKELY_SPLIT"], "requiredApprovalTier": "T2" } },
+    { "id": "T17", "anchorPrId": "PR-2052", "scenario": "SEPARATE_PROJECTS", "requesterJustification": "Both are for the same new office.", "expect": { "agentCalled": true, "split": true, "verdictIn": ["SPLIT", "LIKELY_SPLIT"] } },
+    { "id": "T18", "anchorPrId": "PR-2013", "scenario": "APOLLO_KIT", "requesterJustification": "Chargers and docks were not in the original laptop budget, so I raised them as they were approved.", "expect": { "agentCalled": true, "split": true, "verdictIn": ["SPLIT", "LIKELY_SPLIT"] } },
+    { "id": "T19", "anchorPrId": "PR-2072", "scenario": "EMERGENCY", "requesterJustification": "The generator failed at 7 am and the alternator rewinding quote did not cover the control panel, which was found burnt during repair.", "expect": { "agentCalled": true, "split": false, "verdictIn": ["NOT_SPLIT"], "legitException": "EMERGENCY" } }
+  ]
+}

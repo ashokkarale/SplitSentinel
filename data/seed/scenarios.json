@@ -1,0 +1,181 @@
+[
+  {
+    "key": "PRIYA_LAPTOPS",
+    "anchorPrId": "PR-2003",
+    "note": "3 x 95k laptops, same requester and vendor, within 3 days; each T1, combined T2",
+    "expectedRoute": "AGENT_HUMAN_REQUIRED",
+    "expectedVerdict": "SPLIT",
+    "expectedException": null,
+    "ruleScore": 80,
+    "rulePatterns": [
+      "P1",
+      "TIER",
+      "P2",
+      "P6",
+      "P3"
+    ],
+    "groupPrIds": [
+      "PR-2003",
+      "PR-2001",
+      "PR-2002"
+    ],
+    "combinedAmount": 285000,
+    "combinedTier": "T2"
+  },
+  {
+    "key": "APOLLO_KIT",
+    "anchorPrId": "PR-2013",
+    "note": "Laptops, chargers and docks for project APOLLO from three vendors over 6 days; rules alone score low",
+    "expectedRoute": "AGENT",
+    "expectedVerdict": "LIKELY_SPLIT",
+    "expectedException": null,
+    "ruleScore": 30,
+    "rulePatterns": [
+      "TIER",
+      "PROJ"
+    ],
+    "groupPrIds": [
+      "PR-2013",
+      "PR-2011",
+      "PR-2012"
+    ],
+    "combinedAmount": 195000,
+    "combinedTier": "T2"
+  },
+  {
+    "key": "STATIONERY",
+    "anchorPrId": "PR-2025",
+    "note": "Monthly stationery from a recurring vendor",
+    "expectedRoute": "RELEASE",
+    "expectedVerdict": "NOT_SPLIT",
+    "expectedException": "RECURRING",
+    "ruleScore": 15,
+    "rulePatterns": [
+      "P1",
+      "P3"
+    ],
+    "groupPrIds": [
+      "PR-2025",
+      "PR-2024"
+    ],
+    "combinedAmount": 78000,
+    "combinedTier": "T1"
+  },
+  {
+    "key": "BLANKET_CALLOFFS",
+    "anchorPrId": "PR-2034",
+    "note": "AC maintenance call-offs against valid blanket PO BPO-001",
+    "expectedRoute": "RELEASE",
+    "expectedVerdict": "NOT_SPLIT",
+    "expectedException": "BLANKET_PO",
+    "ruleScore": 25,
+    "rulePatterns": [
+      "P1",
+      "TIER",
+      "P3"
+    ],
+    "groupPrIds": [
+      "PR-2034",
+      "PR-2031",
+      "PR-2032",
+      "PR-2033"
+    ],
+    "combinedAmount": 320000,
+    "combinedTier": "T2"
+  },
+  {
+    "key": "MKT_COLLUSION",
+    "anchorPrId": "PR-2042",
+    "note": "Two marketing requesters, same vendor and cost centre, same day; each T2, combined T3 (RFQ)",
+    "expectedRoute": "AGENT",
+    "expectedVerdict": "LIKELY_SPLIT",
+    "expectedException": null,
+    "ruleScore": 55,
+    "rulePatterns": [
+      "P5",
+      "TIER",
+      "P6",
+      "P3"
+    ],
+    "groupPrIds": [
+      "PR-2042",
+      "PR-2041"
+    ],
+    "combinedAmount": 520000,
+    "combinedTier": "T3"
+  },
+  {
+    "key": "SEPARATE_PROJECTS",
+    "anchorPrId": "PR-2052",
+    "note": "Same vendor and requester, but different projects, cost centres, sites and purposes",
+    "expectedRoute": "AGENT",
+    "expectedVerdict": "NOT_SPLIT",
+    "expectedException": "SEPARATE_PROJECT",
+    "ruleScore": 35,
+    "rulePatterns": [
+      "P1",
+      "P6"
+    ],
+    "groupPrIds": [
+      "PR-2052",
+      "PR-2051"
+    ],
+    "combinedAmount": 230000,
+    "combinedTier": "T2"
+  },
+  {
+    "key": "HABITUAL",
+    "anchorPrId": "PR-2065",
+    "note": "Requester who keeps landing at 92-99% of the T1 ceiling; two software PRs combine to T2",
+    "expectedRoute": "AGENT",
+    "expectedVerdict": "LIKELY_SPLIT",
+    "expectedException": null,
+    "ruleScore": 45,
+    "rulePatterns": [
+      "TIER",
+      "P2",
+      "P7"
+    ],
+    "groupPrIds": [
+      "PR-2065",
+      "PR-2064"
+    ],
+    "combinedAmount": 195000,
+    "combinedTier": "T2"
+  },
+  {
+    "key": "EMERGENCY",
+    "anchorPrId": "PR-2072",
+    "note": "Two emergency PRs for a generator breakdown on the same day",
+    "expectedRoute": "AGENT",
+    "expectedVerdict": "NOT_SPLIT",
+    "expectedException": "EMERGENCY",
+    "ruleScore": 45,
+    "rulePatterns": [
+      "P1",
+      "TIER",
+      "P6"
+    ],
+    "groupPrIds": [
+      "PR-2072",
+      "PR-2071"
+    ],
+    "combinedAmount": 130000,
+    "combinedTier": "T2"
+  },
+  {
+    "key": "CLEAN",
+    "anchorPrId": "PR-2081",
+    "note": "Single PR with no related history",
+    "expectedRoute": "RELEASE",
+    "expectedVerdict": null,
+    "expectedException": null,
+    "ruleScore": 0,
+    "rulePatterns": [],
+    "groupPrIds": [
+      "PR-2081"
+    ],
+    "combinedAmount": 45000,
+    "combinedTier": "T1"
+  }
+]

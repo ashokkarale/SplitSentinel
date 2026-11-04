@@ -1,0 +1,4 @@
+blanketPoId,vendorId,category,approvedAmount,consumedAmount,validFrom,validTo,approvedBy
+BPO-001,V011,Facilities,1000000,240000,2026-10-01,2027-03-31,E302
+BPO-002,V002,IT Hardware,1500000,380000,2026-07-01,2026-12-31,E401
+BPO-003,V008,Marketing,600000,120000,2026-04-01,2026-09-30,E304

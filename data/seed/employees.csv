@@ -1,0 +1,26 @@
+employeeId,name,email,managerId,costCenter,approvalLimit,role
+E401,Rohan Malhotra,rohan.malhotra@splitsentinel.example,,CC-FIN,2500000,CFO
+E301,Kavita Bose,kavita.bose@splitsentinel.example,E401,CC-IT,500000,DeptHead
+E302,Manish Tiwari,manish.tiwari@splitsentinel.example,E401,CC-OPS,500000,DeptHead
+E303,Shalini Pillai,shalini.pillai@splitsentinel.example,E401,CC-FIN,500000,DeptHead
+E304,Ajay Saxena,ajay.saxena@splitsentinel.example,E401,CC-MKT,500000,DeptHead
+E201,Nikhil Bansal,nikhil.bansal@splitsentinel.example,E301,CC-IT,100000,LineManager
+E202,Ritu Chawla,ritu.chawla@splitsentinel.example,E302,CC-OPS,100000,LineManager
+E203,Gaurav Khanna,gaurav.khanna@splitsentinel.example,E303,CC-FIN,100000,LineManager
+E204,Divya Menon,divya.menon@splitsentinel.example,E304,CC-MKT,100000,LineManager
+E501,Harish Patil,harish.patil@splitsentinel.example,E401,CC-FIN,0,Audit
+E601,Sneha Kulkarni,sneha.kulkarni@splitsentinel.example,E302,CC-OPS,0,ProcurementOps
+E101,Priya Sharma,priya.sharma@splitsentinel.example,E201,CC-IT,100000,Requester
+E102,Rahul Verma,rahul.verma@splitsentinel.example,E202,CC-OPS,100000,Requester
+E103,Anita Desai,anita.desai@splitsentinel.example,E203,CC-FIN,100000,Requester
+E104,Farhan Qureshi,farhan.qureshi@splitsentinel.example,E202,CC-OPS,100000,Requester
+E105,Neha Kapoor,neha.kapoor@splitsentinel.example,E204,CC-MKT,100000,Requester
+E106,Arjun Mehta,arjun.mehta@splitsentinel.example,E204,CC-MKT,100000,Requester
+E107,Kiran Rao,kiran.rao@splitsentinel.example,E202,CC-OPS,100000,Requester
+E108,Vikram Singh,vikram.singh@splitsentinel.example,E203,CC-FIN,100000,Requester
+E109,Suresh Nair,suresh.nair@splitsentinel.example,E202,CC-OPS,100000,Requester
+E110,Meera Iyer,meera.iyer@splitsentinel.example,E204,CC-MKT,100000,Requester
+E111,Deepak Joshi,deepak.joshi@splitsentinel.example,E201,CC-IT,100000,Requester
+E112,Pooja Reddy,pooja.reddy@splitsentinel.example,E203,CC-FIN,100000,Requester
+E113,Sanjay Gupta,sanjay.gupta@splitsentinel.example,E202,CC-OPS,100000,Requester
+E114,Lata Krishnan,lata.krishnan@splitsentinel.example,E204,CC-MKT,100000,Requester

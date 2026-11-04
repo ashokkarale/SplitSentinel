@@ -1,0 +1,32 @@
+[
+  {
+    "blanketPoId": "BPO-001",
+    "vendorId": "V011",
+    "category": "Facilities",
+    "approvedAmount": 1000000,
+    "consumedAmount": 240000,
+    "validFrom": "2026-10-01",
+    "validTo": "2027-03-31",
+    "approvedBy": "E302"
+  },
+  {
+    "blanketPoId": "BPO-002",
+    "vendorId": "V002",
+    "category": "IT Hardware",
+    "approvedAmount": 1500000,
+    "consumedAmount": 380000,
+    "validFrom": "2026-07-01",
+    "validTo": "2026-12-31",
+    "approvedBy": "E401"
+  },
+  {
+    "blanketPoId": "BPO-003",
+    "vendorId": "V008",
+    "category": "Marketing",
+    "approvedAmount": 600000,
+    "consumedAmount": 120000,
+    "validFrom": "2026-04-01",
+    "validTo": "2026-09-30",
+    "approvedBy": "E304"
+  }
+]

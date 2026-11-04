@@ -1,0 +1,34 @@
+flowchart TD
+    REQ([Requester submits PR]) --> DF[(Data Fabric<br/>PurchaseRequisition)]
+    DF -- record event --> T0
+
+    subgraph FLOW[Maestro Automate Flow: SplitSentinel]
+        T0[Trigger: PR submitted] --> IDEM{SplitCase exists<br/>for this PR?}
+        IDEM -- yes --> ENDSKIP([End: skipped])
+        IDEM -- no --> LOAD[Load context<br/>PR, approval matrix, PRs last 90 days,<br/>requester, vendor, blanket POs<br/>retry x3]
+        LOAD -- failed --> HOLD[Unverified hold<br/>fail closed]
+        LOAD --> RULES[Rule engine script<br/>score 0-100 + patterns]
+        RULES --> LOW{score < 30?}
+        LOW -- yes --> REL[Release PR]
+        LOW -- no --> AGENT[Inline agent<br/>split judgement]
+        AGENT --> VAL[Validate agent output<br/>ids, amount, tier; retry once]
+        VAL --> GATE{Gateway + guardrail}
+        GATE -- NOT_SPLIT + exception, score < 60 --> REL
+        GATE -- LIKELY_SPLIT, ask requester --> JUST[Requester justification<br/>quick form, 24h]
+        JUST --> AGENT2[Agent re-evaluation] --> GATE2{Gateway}
+        GATE2 -- clear --> REL
+        GATE2 -- otherwise --> REVIEW
+        GATE -- SPLIT / LIKELY_SPLIT / FAILED /<br/>score >= 60 --> REVIEW[Approver review<br/>Action Center quick form<br/>assigned to combined tier, 48h SLA]
+        REVIEW -- CONSOLIDATE --> CONS[Consolidate PRs]
+        REVIEW -- APPROVE_SEPARATE / FALSE_POSITIVE --> REL
+        REVIEW -- REJECT --> REJ[Reject PRs]
+        REVIEW -- timeout --> ESC[Escalate one tier]
+        REL --> AUDIT
+        CONS --> AUDIT
+        REJ --> AUDIT
+        ESC --> AUDIT
+        HOLD --> AUDIT
+        AUDIT[Write SplitCase<br/>audit record + runLog] --> MAIL[Email notification<br/>Gmail, retry x2]
+    end
+
+    MAIL --> DONE([End])

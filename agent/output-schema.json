@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SplitSentinelVerdict",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verdict", "confidence", "patterns", "relatedPrIds", "combinedAmount", "requiredApprovalTier",
+    "competitiveBidRequired", "legitException", "reasoning", "suggestedAction"],
+  "properties": {
+    "verdict": { "type": "string", "enum": ["SPLIT", "LIKELY_SPLIT", "NOT_SPLIT"] },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "patterns": { "type": "array", "items": { "type": "string", "enum": ["P1", "P2", "P3", "P4", "P5", "P6", "P7"] } },
+    "relatedPrIds": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "combinedAmount": { "type": "number", "minimum": 0 },
+    "requiredApprovalTier": { "type": "string", "enum": ["T1", "T2", "T3", "T4"] },
+    "competitiveBidRequired": { "type": "boolean" },
+    "legitException": { "type": "string", "enum": ["NONE", "RECURRING", "BLANKET_PO", "SEPARATE_PROJECT", "EMERGENCY", "STAGGERED_DELIVERY"] },
+    "reasoning": { "type": "string", "maxLength": 1200 },
+    "suggestedAction": { "type": "string", "enum": ["CONSOLIDATE", "ASK_REQUESTER", "APPROVE"] }
+  }
+}

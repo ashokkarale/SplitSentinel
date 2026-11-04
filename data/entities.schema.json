@@ -1,0 +1,94 @@
+{
+  "Employee": {
+    "displayName": "Employee", "description": "SplitSentinel: employees, cost centres and approval limits",
+    "fields": [
+      { "name": "employeeId", "type": "STRING", "lengthLimit": 20, "isRequired": true, "isUnique": true },
+      { "name": "name", "type": "STRING", "lengthLimit": 100, "isRequired": true },
+      { "name": "email", "type": "STRING", "lengthLimit": 200 },
+      { "name": "managerId", "type": "STRING", "lengthLimit": 20 },
+      { "name": "costCenter", "type": "STRING", "lengthLimit": 20, "isRequired": true },
+      { "name": "approvalLimit", "type": "DECIMAL", "decimalPrecision": 2 },
+      { "name": "role", "type": "STRING", "lengthLimit": 30, "isRequired": true }
+    ]
+  },
+  "Vendor": {
+    "displayName": "Vendor", "description": "SplitSentinel: vendor master",
+    "fields": [
+      { "name": "vendorId", "type": "STRING", "lengthLimit": 20, "isRequired": true, "isUnique": true },
+      { "name": "name", "type": "STRING", "lengthLimit": 100, "isRequired": true },
+      { "name": "category", "type": "STRING", "lengthLimit": 50, "isRequired": true },
+      { "name": "isRecurring", "type": "BOOLEAN" },
+      { "name": "contactEmail", "type": "STRING", "lengthLimit": 200 }
+    ]
+  },
+  "BlanketPO": {
+    "displayName": "Blanket PO", "description": "SplitSentinel: approved blanket purchase orders",
+    "fields": [
+      { "name": "blanketPoId", "type": "STRING", "lengthLimit": 20, "isRequired": true, "isUnique": true },
+      { "name": "vendorId", "type": "STRING", "lengthLimit": 20, "isRequired": true },
+      { "name": "category", "type": "STRING", "lengthLimit": 50 },
+      { "name": "approvedAmount", "type": "DECIMAL", "decimalPrecision": 2 },
+      { "name": "consumedAmount", "type": "DECIMAL", "decimalPrecision": 2 },
+      { "name": "validFrom", "type": "DATE", "isRequired": true },
+      { "name": "validTo", "type": "DATE", "isRequired": true },
+      { "name": "approvedBy", "type": "STRING", "lengthLimit": 20 }
+    ]
+  },
+  "ApprovalMatrix": {
+    "displayName": "Approval Matrix", "description": "SplitSentinel: approval tiers by total value",
+    "fields": [
+      { "name": "tierId", "type": "STRING", "lengthLimit": 5, "isRequired": true, "isUnique": true },
+      { "name": "minAmount", "type": "DECIMAL", "decimalPrecision": 2, "isRequired": true },
+      { "name": "maxAmount", "type": "DECIMAL", "decimalPrecision": 2 },
+      { "name": "approverRole", "type": "STRING", "lengthLimit": 30, "isRequired": true },
+      { "name": "quotesRequired", "type": "DECIMAL", "decimalPrecision": 0 },
+      { "name": "rfqRequired", "type": "BOOLEAN" }
+    ]
+  },
+  "PurchaseRequisition": {
+    "displayName": "Purchase Requisition", "description": "SplitSentinel: purchase requisitions (simulated ERP)",
+    "fields": [
+      { "name": "prId", "type": "STRING", "lengthLimit": 20, "isRequired": true, "isUnique": true },
+      { "name": "requesterId", "type": "STRING", "lengthLimit": 20, "isRequired": true },
+      { "name": "costCenter", "type": "STRING", "lengthLimit": 20, "isRequired": true },
+      { "name": "projectCode", "type": "STRING", "lengthLimit": 30 },
+      { "name": "vendorId", "type": "STRING", "lengthLimit": 20, "isRequired": true },
+      { "name": "category", "type": "STRING", "lengthLimit": 50 },
+      { "name": "description", "type": "STRING", "lengthLimit": 1000, "isRequired": true },
+      { "name": "quantity", "type": "DECIMAL", "decimalPrecision": 0 },
+      { "name": "unitPrice", "type": "DECIMAL", "decimalPrecision": 2 },
+      { "name": "amount", "type": "DECIMAL", "decimalPrecision": 2, "isRequired": true },
+      { "name": "currency", "type": "STRING", "lengthLimit": 3 },
+      { "name": "deliverySite", "type": "STRING", "lengthLimit": 100 },
+      { "name": "blanketPoRef", "type": "STRING", "lengthLimit": 20 },
+      { "name": "isEmergency", "type": "BOOLEAN" },
+      { "name": "createdAt", "type": "DATETIME_WITH_TZ", "isRequired": true },
+      { "name": "status", "type": "STRING", "lengthLimit": 20, "isRequired": true },
+      { "name": "splitCaseId", "type": "STRING", "lengthLimit": 30 }
+    ]
+  },
+  "SplitCase": {
+    "displayName": "Split Case", "description": "SplitSentinel: audit trail of every check",
+    "fields": [
+      { "name": "caseId", "type": "STRING", "lengthLimit": 30, "isRequired": true, "isUnique": true },
+      { "name": "anchorPrId", "type": "STRING", "lengthLimit": 20, "isRequired": true },
+      { "name": "relatedPrIds", "type": "STRING", "lengthLimit": 2000 },
+      { "name": "combinedAmount", "type": "DECIMAL", "decimalPrecision": 2 },
+      { "name": "ruleScore", "type": "DECIMAL", "decimalPrecision": 0 },
+      { "name": "rulePatterns", "type": "STRING", "lengthLimit": 200 },
+      { "name": "ruleSignals", "type": "MULTILINE_TEXT", "lengthLimit": 4000 },
+      { "name": "agentVerdict", "type": "STRING", "lengthLimit": 20 },
+      { "name": "agentConfidence", "type": "DECIMAL", "decimalPrecision": 2 },
+      { "name": "agentLegitException", "type": "STRING", "lengthLimit": 30 },
+      { "name": "agentReasoning", "type": "MULTILINE_TEXT", "lengthLimit": 4000 },
+      { "name": "requiredApprovalTier", "type": "STRING", "lengthLimit": 5 },
+      { "name": "requesterJustification", "type": "MULTILINE_TEXT", "lengthLimit": 4000 },
+      { "name": "humanDecision", "type": "STRING", "lengthLimit": 20 },
+      { "name": "humanComment", "type": "MULTILINE_TEXT", "lengthLimit": 4000 },
+      { "name": "decidedBy", "type": "STRING", "lengthLimit": 100 },
+      { "name": "decidedAt", "type": "DATETIME_WITH_TZ" },
+      { "name": "finalOutcome", "type": "STRING", "lengthLimit": 20 },
+      { "name": "runLog", "type": "MULTILINE_TEXT", "lengthLimit": 10000 }
+    ]
+  }
+}

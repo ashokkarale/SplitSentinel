@@ -1,0 +1,114 @@
+[
+  {
+    "vendorId": "V001",
+    "name": "Nimbus Systems",
+    "category": "IT Hardware",
+    "isRecurring": false,
+    "contactEmail": "sales@nimbussystems.example"
+  },
+  {
+    "vendorId": "V002",
+    "name": "Vertex Devices",
+    "category": "IT Hardware",
+    "isRecurring": false,
+    "contactEmail": "sales@vertexdevices.example"
+  },
+  {
+    "vendorId": "V003",
+    "name": "Orbit Peripherals",
+    "category": "IT Hardware",
+    "isRecurring": false,
+    "contactEmail": "sales@orbitperipherals.example"
+  },
+  {
+    "vendorId": "V004",
+    "name": "PaperTrail Supplies",
+    "category": "Stationery",
+    "isRecurring": true,
+    "contactEmail": "sales@papertrailsupplies.example"
+  },
+  {
+    "vendorId": "V005",
+    "name": "SparkClean Services",
+    "category": "Facilities",
+    "isRecurring": true,
+    "contactEmail": "sales@sparkcleanservices.example"
+  },
+  {
+    "vendorId": "V006",
+    "name": "Chai Point Pantry",
+    "category": "Pantry",
+    "isRecurring": true,
+    "contactEmail": "sales@chaipointpantry.example"
+  },
+  {
+    "vendorId": "V007",
+    "name": "SwiftRoute Couriers",
+    "category": "Courier",
+    "isRecurring": true,
+    "contactEmail": "sales@swiftroutecouriers.example"
+  },
+  {
+    "vendorId": "V008",
+    "name": "Inkwell Print House",
+    "category": "Marketing",
+    "isRecurring": false,
+    "contactEmail": "sales@inkwellprinthouse.example"
+  },
+  {
+    "vendorId": "V009",
+    "name": "Gather Events",
+    "category": "Events",
+    "isRecurring": false,
+    "contactEmail": "sales@gatherevents.example"
+  },
+  {
+    "vendorId": "V010",
+    "name": "Oakline Furniture",
+    "category": "Furniture",
+    "isRecurring": false,
+    "contactEmail": "sales@oaklinefurniture.example"
+  },
+  {
+    "vendorId": "V011",
+    "name": "Urban Facility Services",
+    "category": "Facilities",
+    "isRecurring": false,
+    "contactEmail": "sales@urbanfacilityservices.example"
+  },
+  {
+    "vendorId": "V012",
+    "name": "CloudNest Software",
+    "category": "Software",
+    "isRecurring": false,
+    "contactEmail": "sales@cloudnestsoftware.example"
+  },
+  {
+    "vendorId": "V013",
+    "name": "Bytecraft Licensing",
+    "category": "Software",
+    "isRecurring": false,
+    "contactEmail": "sales@bytecraftlicensing.example"
+  },
+  {
+    "vendorId": "V014",
+    "name": "Skyway Travels",
+    "category": "Travel",
+    "isRecurring": false,
+    "contactEmail": "sales@skywaytravels.example"
+  },
+  {
+    "vendorId": "V015",
+    "name": "Shakti Electricals",
+    "category": "Electrical",
+    "isRecurring": false,
+    "contactEmail": "sales@shaktielectricals.example"
+  },
+  {
+    "vendorId": "V016",
+    "name": "Pixel Accessories",
+    "category": "IT Hardware",
+    "isRecurring": false,
+    "contactEmail": "sales@pixelaccessories.example"
+  }
+]
