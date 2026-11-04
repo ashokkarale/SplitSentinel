@@ -1,0 +1,21 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+
+# UiPath local / scratch
+SmokeTest/
+.uipath/
+*.nupkg
+
+# Secrets
+.env
+*.auth
+
+# OS / editor
+Thumbs.db
+.DS_Store
+.vscode/
