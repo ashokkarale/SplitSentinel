@@ -84,6 +84,7 @@ Eval set run `74933264-…`: **Path exact match = 1.0 on both data points.** The
 | Agent clears a look-alike (v1.0.4) | PR-2106 (₹97k display) after PR-2105 (₹96k laptops), same requester, rules score 45 | NOT_SPLIT / SEPARATE_PROJECT (0.82) → Released, no human task |
 | Agent catches a medium-score split (v1.0.4) | PR-2107 (more laptops for the same team, other vendor), rules score 35 | LIKELY_SPLIT (0.78) → approver AppTask; reviewer Reject → PR-2105 and PR-2107 Rejected |
 | Requester explanation app (v1.0.4) | PR-2109 (same cleaning service and vendor as PR-2108, different site), rules score 70 | Agent asked the requester → **explain AppTask** with all inputs; requester submitted "different sites"; agent re-judged LIKELY_SPLIT (0.82, justification insufficient per policy) → approver AppTask showed the explanation; reviewer Keep separate → PR-2109 Released, `SC-PR-2109` = APPROVE_SEPARATE |
+| Live-test fixes (v1.0.5) | PR-2111 (podcast-studio kit, same requester and vendor as PR-2110; PR-1034 joins the rules' group via P5), rules score 60 | SPLIT (0.95) on PR-2111 + PR-2110; review form showed the note that the rules scored PR-1034 too (₹2,92,000 vs ₹1,91,000); reviewer Keep separate → PR-2111 Released, PR-2110 linked to `SC-PR-2111` with its status kept, PR-1034 untouched; `decidedBy` = "Approver, Action Center task <id>" |
 | Upgrade to v1.0.1 | `deploy upgrade` to the relaid-out version; inserted PR-2093 | Upgrade Active; trigger fired on v1.0.1, `SC-PR-2093` written, PR-2093 → Released |
 
 ## 7. Not run

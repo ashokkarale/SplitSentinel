@@ -162,7 +162,7 @@ uip solution deploy config link <cfg>.json "SplitSentinel Data Fabric" --name "S
 uip solution deploy config link <cfg>.json "Gmail Connection" --name "Gmail Connection" --folder-path "<personal workspace path>"
 uip solution deploy run --name SplitSentinel --package-name SplitSentinel --package-version <x.y.z> --folder-name SplitSentinel --parent-folder-path Shared --config-file <cfg>.json --output json
 ```
-Deployed: `Shared/SplitSentinel` (v1.0.4, Active; upgrades via `deploy upgrade <deployment-key> --version <x.y.z>`, which keeps the connection links). New versions go through `uip solution deploy upgrade`, not a second `deploy run`. Pass `--folder-path` as a plain string (a PowerShell object serialises as `@{Path=…}` and the link fails with `LinkedResourceNotFound`).
+Deployed: `Shared/SplitSentinel` (v1.0.5, Active; upgrades via `deploy upgrade <deployment-key> --version <x.y.z>`, which keeps the connection links). New versions go through `uip solution deploy upgrade`, not a second `deploy run`. Pass `--folder-path` as a plain string (a PowerShell object serialises as `@{Path=…}` and the link fails with `LinkedResourceNotFound`).
 
 ### Connectors
 - Find the node first: `uip maestro registry search '<service>'` (run `uip maestro registry pull` if the library isn't cached).

@@ -104,6 +104,7 @@ Types follow the Data Fabric UI-safe set: `DECIMAL` (precision 0 for whole numbe
 | PR-2105, PR-2106 | Borderline test on v1.0.4; the agent cleared PR-2106 as a separate need (Released, no task) |
 | PR-2107 | Follow-up to PR-2105; LIKELY_SPLIT → approver Rejected PR-2105 and PR-2107 |
 | PR-2108, PR-2109 | Explain-app test on v1.0.4: requester explained, agent re-judged, approver kept them separate (Released) |
+| PR-2110, PR-2111 | v1.0.5 fix test: review note for the rules' wider group, decidedBy, linked PRs on Keep separate |
 
 ## Loading seed data
 
