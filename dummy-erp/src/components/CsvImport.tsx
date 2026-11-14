@@ -101,7 +101,7 @@ export default function CsvImport({ erp, masters, prIds, onCreated }: Props) {
   return (
     <section className="space-y-4">
       <div className="panel p-4">
-        <h1 className="text-lg font-semibold">Import requisitions from CSV</h1>
+        <h1 className="text-lg font-semibold">Upload requisitions from CSV</h1>
         <p className="mt-1 text-sm text-slate-600">
           One row per requisition, with the same columns as the requisition record. Rows are checked first; only valid rows are imported,
           one at a time in file order. Leave <code>amount</code> empty to use quantity × unit price, <code>status</code> empty for Submitted

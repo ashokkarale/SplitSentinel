@@ -10,8 +10,8 @@ creates, through its Data Fabric "record created" trigger, as it would with a re
 | Screen | Purpose |
 |---|---|
 | Requisitions | PR list, newest first, 25 per page, with status and the approval case id |
-| New requisition | Form with every entity field. Requester fills the cost centre, vendor fills the category, amount defaults to quantity × unit price, PR number defaults to the next free one |
-| Import CSV | Template download, upload, row-by-row check, then import of the valid rows with a per-row result |
+| New requisition → Enter one | Form with every entity field. Requester fills the cost centre, vendor fills the category, amount defaults to quantity × unit price, PR number defaults to the next free one |
+| New requisition → Upload CSV | Template download, upload, row-by-row check, then import of the valid rows with a per-row result |
 
 Every PR is written with a **single-record insert** (`entities.insertRecord`), also during CSV
 import. Data Fabric raises trigger events only for single inserts, never for batch

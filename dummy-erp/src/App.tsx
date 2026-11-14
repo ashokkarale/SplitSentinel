@@ -6,18 +6,24 @@ import RequisitionList from './components/RequisitionList';
 import NewRequisition from './components/NewRequisition';
 import CsvImport from './components/CsvImport';
 
-type Tab = 'list' | 'new' | 'import';
+type Tab = 'list' | 'new';
+type NewMode = 'form' | 'csv';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'list', label: 'Requisitions' },
   { id: 'new', label: 'New requisition' },
-  { id: 'import', label: 'Import CSV' },
+];
+
+const NEW_MODES: { id: NewMode; label: string }[] = [
+  { id: 'form', label: 'Enter one' },
+  { id: 'csv', label: 'Upload CSV' },
 ];
 
 function Shell() {
   const { sdk, logout } = useAuth();
   const erp = useMemo(() => createErp(sdk), [sdk]);
   const [tab, setTab] = useState<Tab>('list');
+  const [newMode, setNewMode] = useState<NewMode>('form');
   const [masters, setMasters] = useState<Masters | null>(null);
   const [prIds, setPrIds] = useState<Set<string>>(new Set());
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -75,9 +81,26 @@ function Shell() {
         )}
         {tab === 'list' && <RequisitionList erp={erp} masters={masters} version={listVersion} />}
         {tab === 'new' && (
-          <NewRequisition erp={erp} masters={masters} prIds={prIds} onCreated={onCreated} onShowList={() => setTab('list')} />
+          <>
+            <div className="mb-4 inline-flex rounded border border-slate-300 bg-white p-0.5" role="tablist" aria-label="How to add requisitions">
+              {NEW_MODES.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={newMode === m.id}
+                  onClick={() => setNewMode(m.id)}
+                  className={`rounded px-3 py-1.5 text-sm ${newMode === m.id ? 'bg-brand-700 text-white' : 'text-slate-700 hover:bg-slate-100'}`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            {newMode === 'form'
+              ? <NewRequisition erp={erp} masters={masters} prIds={prIds} onCreated={onCreated} onShowList={() => setTab('list')} />
+              : <CsvImport erp={erp} masters={masters} prIds={prIds} onCreated={onCreated} />}
+          </>
         )}
-        {tab === 'import' && <CsvImport erp={erp} masters={masters} prIds={prIds} onCreated={onCreated} />}
       </main>
 
       <footer className="py-3 text-center text-xs text-slate-400">Open ERP · demo procurement system</footer>
