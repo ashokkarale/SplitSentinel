@@ -143,6 +143,21 @@ uip maestro flow debug SplitSentinel --log-level error --output json `
 - `Completed` with an empty `failed` list is the evidence; an exit code alone isn't.
 - **Never re-run `debug` to "look again".** Diagnose from the response, incidents and traces (`uipath-troubleshoot`).
 
+### Deploy (only when the user asks)
+```powershell
+# from the repo root
+uip solution resources refresh --solution-folder SplitSentinel --output json
+uip solution pack SplitSentinel <out-dir> --version <x.y.z> --output json
+uip solution publish <out-dir>/SplitSentinel_<x.y.z>.zip --output json
+uip solution deploy config get SplitSentinel -d <cfg>.json --output json
+# link BOTH connections to the existing authenticated ones, or the deploy creates
+# unauthenticated copies and stops at NeedsSetupToActivate:
+uip solution deploy config link <cfg>.json "SplitSentinel Data Fabric" --name "SplitSentinel Data Fabric" --folder-path "<personal workspace path>"
+uip solution deploy config link <cfg>.json "Gmail Connection" --name "Gmail Connection" --folder-path "<personal workspace path>"
+uip solution deploy run --name SplitSentinel --package-name SplitSentinel --package-version <x.y.z> --folder-name SplitSentinel --parent-folder-path Shared --config-file <cfg>.json --output json
+```
+Deployed: `Shared/SplitSentinel` (v1.0.0, Active). New versions go through `uip solution deploy upgrade`, not a second `deploy run`. Pass `--folder-path` as a plain string (a PowerShell object serialises as `@{Path=…}` and the link fails with `LinkedResourceNotFound`).
+
 ### Connectors
 - Find the node first: `uip maestro registry search '<service>'` (run `uip maestro registry pull` if the library isn't cached).
 - Write the step, run `check`, then run exactly the `uip maestro registry prepare ...` command that `check` names. Re-run `check` and compile.

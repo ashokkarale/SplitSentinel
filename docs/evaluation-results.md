@@ -74,7 +74,14 @@ Eval set run `74933264-…`: **Path exact match = 1.0 on both data points.** The
 | Agent output corrections needed by validation | 0 / 9 agent calls | all live agent runs |
 | Share of seed anchors resolved without the agent | 33% | rule layer |
 
-## 6. Not run
+## 6. Live integration tests (2026-11-14)
+
+| Test | How | Result |
+|---|---|---|
+| Gmail notification | New Submitted PR-2091, real (non-what-if) debug run | `notifyText` → `notify` → `notifyDone` all Completed; case `SC-PR-2091` Released; draft saved (not sent) |
+| Data Fabric event trigger | Solution v1.0.0 packed, published and deployed to `Shared/SplitSentinel` (connections linked to the existing ones); then inserted PR-2092 | Job started by `IntegrationTrigger` 3 s after the insert, Successful; `SC-PR-2092` written, PR-2092 → Released, run log complete |
+
+## 7. Not run
 
 | Case | Why |
 |---|---|

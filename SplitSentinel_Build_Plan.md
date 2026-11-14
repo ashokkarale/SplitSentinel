@@ -158,7 +158,7 @@ Organisations enforce an **approval matrix**: purchases above certain amounts ne
 | D4 | Seed data: ~80 PRs, ~15 vendors, ~20 employees, 3 blanket POs | §9 | ✅ Done | `data/generate-seed.js` → 78 PRs, 16 vendors, 25 employees, 3 blanket POs; all imported, 0 errors; 9 planted scenarios self-checked |
 | D5 | Rule-engine script + unit tests | §10 | ✅ Done | `rules/score.js` + `rules/score.test.js` (15/15 pass) |
 | D6 | Agent: system prompt, input/output schema, evaluation set | §11 | ✅ Done | `agent/system-prompt.md`, `agent/output-schema.json`, `agent/evals/eval-set.json` (19 cases), `agent/evals/run-rule-evals.js` |
-| D7 | Maestro Flow (main) | §12 | ✅ Built | 52 nodes, two entry points (manual + Data Fabric `record-created`), what-if mode, Gmail drafts. `check` 0/0, `validate` Valid with no warnings. **Not yet proven live:** the event trigger (needs a deployed solution) and the Gmail draft step (creates drafts in your mailbox) |
+| D7 | Maestro Flow (main) | §12 | ✅ Built | 52 nodes, two entry points (manual + Data Fabric `record-created`), what-if mode, Gmail drafts. `check` 0/0, `validate` Valid with no warnings. **Proven live:** Gmail draft (PR-2091) and the event trigger after deploying v1.0.0 to `Shared/SplitSentinel` (PR-2092 processed automatically) |
 | D8 | Action Center task form(s) | §13 | ✅ Done | Approver review quick form (4 outcomes + comment), proven live: task created, completed, Flow resumed |
 | D9 | Requester justification form / email template | §13 | ✅ Done | Ran live on T16: requester task → justification → agent re-judged → approver review |
 | D10 | Notification templates (approved, held, consolidated, escalated) | §12 | ✅ Done | `templates/notifications.md` (sending not wired yet, see D7) |

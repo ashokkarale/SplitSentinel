@@ -64,6 +64,7 @@ Requires a UiPath Automation Cloud tenant with Maestro, Agents, Data Fabric and 
    uip maestro flow debug SplitSentinel --inputs '{"requisitionId":"PR-2003","whatIf":false}'
    ```
    Once deployed, the Flow also starts on its own when a `PurchaseRequisition` record is created (Data Fabric `record-created` event).
+7. Deploy: `uip solution pack` → `publish` → `deploy config get`, link the two connections to your existing ones with `deploy config link`, then `deploy run --config-file …` (full commands in `AGENTS.md` §5).
 
 ## Scenarios in the seed data
 

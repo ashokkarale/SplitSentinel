@@ -6,13 +6,104 @@
     "type": "flow",
     "apiVersion": "orchestrator.uipath.com/v1",
     "projectKey": "dbd9ac3b-385b-4eff-b569-bd27e562b0c4",
+    "isOverridable": true,
     "dependencies": [
       {
         "kind": "package",
         "name": "SplitSentinel"
       }
     ],
-    "runtimeDependencies": [],
+    "runtimeDependencies": [
+      {
+        "bindingType": "connection",
+        "bindingKey": "66dfd117-f846-4b6f-899c-c834852ce1dc",
+        "bindingValues": {
+          "connectionId": {
+            "defaultValue": "66dfd117-f846-4b6f-899c-c834852ce1dc",
+            "isExpression": false
+          }
+        },
+        "bindingMetadata": {
+          "activityName": "notify",
+          "bindingsVersion": "2.2",
+          "connector": "uipath-google-gmail",
+          "useConnectionService": "true"
+        },
+        "resourceKind": "Connection",
+        "resourceType": "uipath-google-gmail",
+        "resourceKey": "66dfd117-f846-4b6f-899c-c834852ce1dc",
+        "resourceName": "Gmail Connection",
+        "folderKey": "179dba0b-3aef-485e-ae12-24aa686ed19f"
+      },
+      {
+        "bindingType": "connection",
+        "bindingKey": "01745482-f6ba-4353-addc-38659df5845c",
+        "bindingValues": {
+          "connectionId": {
+            "defaultValue": "01745482-f6ba-4353-addc-38659df5845c",
+            "isExpression": false
+          }
+        },
+        "bindingMetadata": {
+          "activityName": "Record Created",
+          "bindingsVersion": "2.2",
+          "connector": "uipath-uipath-dataservice",
+          "useConnectionService": "true"
+        },
+        "resourceKind": "Connection",
+        "resourceType": "uipath-uipath-dataservice",
+        "resourceKey": "01745482-f6ba-4353-addc-38659df5845c",
+        "resourceName": "SplitSentinel Data Fabric",
+        "folderKey": "179dba0b-3aef-485e-ae12-24aa686ed19f"
+      },
+      {
+        "bindingType": "EventTrigger",
+        "bindingKey": "01745482-f6ba-4353-addc-38659df5845c_onPrCreated",
+        "bindingValues": {
+          "connectionId": {
+            "defaultValue": "01745482-f6ba-4353-addc-38659df5845c",
+            "isExpression": false
+          },
+          "entryPointUniqueId": {
+            "defaultValue": "02ee06a0-0102-4000-8000-03ecda730102",
+            "isExpression": false
+          }
+        },
+        "bindingMetadata": {
+          "activityName": "Record Created",
+          "bindingsVersion": "2.2",
+          "connector": "uipath-uipath-dataservice",
+          "operation": "CREATED_V3",
+          "objectName": "EntityTriggers_V3",
+          "filterExpression": ""
+        },
+        "resourceKind": "Connection",
+        "resourceType": "uipath-uipath-dataservice"
+      },
+      {
+        "bindingType": "Property",
+        "bindingKey": "CREATED_V3",
+        "bindingValues": {
+          "entityScope": {
+            "defaultValue": "tenant",
+            "isExpression": false
+          },
+          "tenantEntityName": {
+            "defaultValue": "PurchaseRequisition",
+            "isExpression": false
+          }
+        },
+        "bindingMetadata": {
+          "activityName": "Record Created",
+          "bindingsVersion": "2.2",
+          "parentResourceKey": "EventTrigger.01745482-f6ba-4353-addc-38659df5845c_onPrCreated",
+          "objectName": "EntityTriggers_V3",
+          "triggerCreateParameters": "entityScope,tenantEntityName",
+          "overwritable": true
+        },
+        "resourceKind": "Property"
+      }
+    ],
     "folders": [
       {
         "fullyQualifiedName": "solution_folder"

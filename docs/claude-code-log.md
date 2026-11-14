@@ -24,6 +24,8 @@ How SplitSentinel was built with Claude Code (Claude Opus 5.5) using the UiPath 
 | 18 | 2026-11-14 | Tuning: inconsistent reasoning (T15) | v2 prompt rule "reasoning must agree with verdict": **no effect**. Diagnosis: the policy never said what happens to an emergency purchase's combined value. v3 clarified the policy | v3: consistent reasoning, confidence 0.82 → 0.88; T7 regression unchanged |
 | 19 | 2026-11-14 | T8 disagreement | The agent kept LIKELY_SPLIT after a specific justification, because policy §4 requires the evidence on the requisitions | Relabelled T8 instead of loosening the control; documented why |
 | 20 | 2026-11-14 | Guardrail and failure paths | Flow eval set with Static simulations of `judge` / `judgeRetry`: T12 (agent wrongly clears a score-80 case) and T11 (invalid answer twice) | T12 → guardrail review; T11 → FAILED with the validation errors listed, then human review |
+| 21 | 2026-11-14 | Keep personal data out of the repo | A scan before committing found the user's email in the compiled Flow: the Data Fabric connection was named after it. The user renamed it; `registry prepare` + `resources edit --source remote --force` + recompile removed it everywhere | Repo free of email; `userProfile/` git-ignored |
+| 22 | 2026-11-14 | Live Gmail + deploy | Real run on a fresh PR created a Gmail draft. First deploy created unauthenticated connection copies (`NeedsSetupToActivate`); fixed by `deploy config link` to the existing connections and re-running in place | Deployed Active to `Shared/SplitSentinel`; inserting a PR started the Flow via the event trigger within 3 s |
 
 ## Things that surprised us
 

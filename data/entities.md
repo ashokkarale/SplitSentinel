@@ -90,6 +90,13 @@ Types follow the Data Fabric UI-safe set: `DECIMAL` (precision 0 for whole numbe
 | finalOutcome | STRING(20) | | | Released, Consolidated, Rejected, Unverified, Escalated |
 | runLog | MULTILINE_TEXT(10000) | | | step trace |
 
+## Test records added live (not in the seed files)
+
+| prId | Purpose |
+|---|---|
+| PR-2091 | Gmail draft test (manual real run) |
+| PR-2092 | Event-trigger test (processed automatically after deploy) |
+
 ## Loading seed data
 
 ```powershell
