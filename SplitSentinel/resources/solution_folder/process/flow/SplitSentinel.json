@@ -24,7 +24,7 @@
           }
         },
         "bindingMetadata": {
-          "activityName": "notify",
+          "activityName": "Gmail draft",
           "bindingsVersion": "2.2",
           "connector": "uipath-google-gmail",
           "useConnectionService": "true"
@@ -45,7 +45,7 @@
           }
         },
         "bindingMetadata": {
-          "activityName": "Record Created",
+          "activityName": "New PR created",
           "bindingsVersion": "2.2",
           "connector": "uipath-uipath-dataservice",
           "useConnectionService": "true"
@@ -70,7 +70,7 @@
           }
         },
         "bindingMetadata": {
-          "activityName": "Record Created",
+          "activityName": "New PR created",
           "bindingsVersion": "2.2",
           "connector": "uipath-uipath-dataservice",
           "operation": "CREATED_V3",
@@ -94,7 +94,7 @@
           }
         },
         "bindingMetadata": {
-          "activityName": "Record Created",
+          "activityName": "New PR created",
           "bindingsVersion": "2.2",
           "parentResourceKey": "EventTrigger.01745482-f6ba-4353-addc-38659df5845c_onPrCreated",
           "objectName": "EntityTriggers_V3",
