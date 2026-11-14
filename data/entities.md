@@ -109,6 +109,7 @@ Types follow the Data Fabric UI-safe set: `DECIMAL` (precision 0 for whole numbe
 | PR-2114, PR-2115 | Review app Not a split test (PR-2115 Released, PR-2114 linked) |
 | PR-2116, PR-2117 | Mixed travel case; agent went to the approver (Keep separate) |
 | PR-2118, PR-2119 | Explain app Merge my PRs test (both Consolidated by the requester) |
+| PR-2120 | Low-risk PR to verify the Gmail draft on the deployed flow (released by rules) |
 
 ## Loading seed data
 

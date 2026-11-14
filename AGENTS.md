@@ -157,13 +157,15 @@ uip solution resources refresh --solution-folder SplitSentinel --output json
 uip solution pack SplitSentinel <out-dir> --version <x.y.z> --output json
 uip solution publish <out-dir>/SplitSentinel_<x.y.z>.zip --output json
 uip solution deploy config get SplitSentinel -d <cfg>.json --output json
-# link BOTH connections to the existing authenticated ones, or the deploy creates
-# unauthenticated copies and stops at NeedsSetupToActivate:
-uip solution deploy config link <cfg>.json "SplitSentinel Data Fabric" --name "SplitSentinel Data Fabric" --folder-path "<personal workspace path>"
-uip solution deploy config link <cfg>.json "Gmail Connection" --name "Gmail Connection" --folder-path "<personal workspace path>"
+# link BOTH connections to existing authenticated connections in the `Shared` folder, or the
+# deploy creates unauthenticated copies and stops at NeedsSetupToActivate:
+uip solution deploy config link <cfg>.json "SplitSentinel Data Fabric" --name "SplitSentinel Data Fabric" --folder-path "Shared"
+uip solution deploy config link <cfg>.json "Gmail Connection" --name "Gmail Connection" --folder-path "Shared"
 uip solution deploy run --name SplitSentinel --package-name SplitSentinel --package-version <x.y.z> --folder-name SplitSentinel --parent-folder-path Shared --config-file <cfg>.json --output json
 ```
-Deployed: `Shared/SplitSentinel` (v1.0.5, Active; upgrades via `deploy upgrade <deployment-key> --version <x.y.z>`, which keeps the connection links). New versions go through `uip solution deploy upgrade`, not a second `deploy run`. Pass `--folder-path` as a plain string (a PowerShell object serialises as `@{Path=…}` and the link fails with `LinkedResourceNotFound`).
+- **Never link a connection in a Personal Workspace.** Deployed runs are Unattended jobs under a robot identity, and a Personal Workspace is visible to its owner only: the Gmail step then fails with Integration Services 403 *"Folder … cannot be accessed: either user … does not have access to the folder"* (handled by its error edge, so the run still succeeds and only the draft is missing). Debug runs hide this because they run as the owner. If a deploy stops at NeedsSetupToActivate, authenticating the connection is not enough: finish **Setup activation** on the deployment in Orchestrator (Tenant > Solutions > Deployments).
+
+Deployed: `Shared/SplitSentinel` (v1.0.5, Active, connections in `Shared`; upgrades via `deploy upgrade <deployment-key> --version <x.y.z>`, which keeps the connection links; the key changed with the 2026-11-14 reinstall, read it from `uip solution deploy list`). New versions go through `uip solution deploy upgrade`, not a second `deploy run`. Pass `--folder-path` as a plain string (a PowerShell object serialises as `@{Path=…}` and the link fails with `LinkedResourceNotFound`).
 
 ### Connectors
 - Find the node first: `uip maestro registry search '<service>'` (run `uip maestro registry pull` if the library isn't cached).
