@@ -27,7 +27,89 @@
           "var": "output"
         }
       },
-      "inputs": {}
+      "inputs": {
+        "entryPointId": "676038c2-0102-4006-8000-666269590102",
+        "isDefaultEntryPoint": true
+      }
+    },
+    {
+      "id": "resolveRun",
+      "type": "core.action.script",
+      "typeVersion": "1.0.0",
+      "display": {
+        "label": "resolveRun",
+        "icon": "code"
+      },
+      "model": {
+        "type": "bpmn:ScriptTask"
+      },
+      "outputs": {
+        "output": {
+          "type": "object",
+          "description": "The return value of the script",
+          "source": {
+            "type": "literal",
+            "expression": "=result.response",
+            "fieldType": "string"
+          },
+          "var": "output",
+          "properties": {
+            "prId": {
+              "type": "string"
+            },
+            "dryRun": {
+              "type": "boolean"
+            }
+          }
+        },
+        "error": {
+          "type": "object",
+          "description": "Error information if the script fails",
+          "source": {
+            "type": "literal",
+            "expression": "=result.Error",
+            "fieldType": "string"
+          },
+          "var": "error",
+          "schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "detail",
+              "category",
+              "status"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Error code as a string"
+              },
+              "message": {
+                "type": "string",
+                "description": "High-level error message"
+              },
+              "detail": {
+                "type": "string",
+                "description": "Detailed error description"
+              },
+              "category": {
+                "type": "string",
+                "description": "Error category"
+              },
+              "status": {
+                "type": "integer",
+                "description": "HTTP status code"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "inputs": {
+        "script": "var id = $vars.prId || ''; var w = false; try { if ($vars.start.output.requisitionId) { id = $vars.start.output.requisitionId; w = $vars.start.output.whatIf === true; } } catch (e) {} return { prId: id, dryRun: w };"
+      }
     },
     {
       "id": "existingCase",
@@ -78,7 +160,7 @@
       "inputs": {
         "trueLabel": "True",
         "falseLabel": "False",
-        "expression": "($vars.existingCase.output.results || []).length > 0"
+        "expression": "!$vars.dryRun && ($vars.existingCase.output.results || []).length > 0"
       }
     },
     {
@@ -174,6 +256,26 @@
           },
           "var": "humanDecisionValue"
         },
+        "prId": {
+          "type": "string",
+          "description": "",
+          "source": {
+            "type": "jsExpression",
+            "expression": "$vars.prId",
+            "fieldType": "string"
+          },
+          "var": "prId"
+        },
+        "dryRun": {
+          "type": "boolean",
+          "description": "",
+          "source": {
+            "type": "jsExpression",
+            "expression": "$vars.dryRun",
+            "fieldType": "boolean"
+          },
+          "var": "dryRun"
+        },
         "finalPrStatus": {
           "type": "string",
           "description": "",
@@ -223,16 +325,6 @@
             "fieldType": "string"
           },
           "var": "humanComment"
-        },
-        "prId": {
-          "type": "string",
-          "description": "",
-          "source": {
-            "type": "jsExpression",
-            "expression": "$vars.prId",
-            "fieldType": "string"
-          },
-          "var": "prId"
         }
       }
     },
@@ -501,7 +593,7 @@
         }
       },
       "inputs": {
-        "script": "\n// SplitSentinel rule engine.\n// Pure function, no I/O. The Flow's rule-engine script node inlines this file's source,\n// so keep it plain ES2019 (no imports, no top-level await) and change it only here.\n\nvar DAY_MS = 86400000;\nvar LOOKBACK_DAYS = 30;\nvar HISTORY_DAYS = 90;\nvar NEAR_LIMIT_MIN = 0.85;\nvar HABIT_MIN = 0.9;\nvar BURST_HOURS = 72;\nvar SIMILARITY_MIN = 0.7;\nvar EXCLUDED_STATUSES = ['Draft', 'Rejected'];\nvar STOPWORDS = ['and', 'for', 'the', 'with', 'from', 'pcs', 'nos', 'qty', 'units', 'set', 'of'];\n\nfunction num(x) {\n  var n = Number(x);\n  return isFinite(n) ? n : 0;\n}\n\nfunction ts(x) {\n  var t = Date.parse(x);\n  return isFinite(t) ? t : 0;\n}\n\nfunction sameText(a, b) {\n  return a != null && b != null && String(a).trim() !== '' && String(a).trim().toLowerCase() === String(b).trim().toLowerCase();\n}\n\nfunction sortedTiers(matrix) {\n  return (matrix || []).slice().sort(function (a, b) { return num(a.minAmount) - num(b.minAmount); });\n}\n\nfunction tierFor(amount, matrix) {\n  var tiers = sortedTiers(matrix);\n  for (var i = 0; i < tiers.length; i++) {\n    var max = tiers[i].maxAmount;\n    var hasMax = max !== null && max !== undefined && max !== '';\n    if (amount >= num(tiers[i].minAmount) && (!hasMax || amount < num(max))) {\n      return { tier: tiers[i], index: i };\n    }\n  }\n  return { tier: null, index: -1 };\n}\n\n// Ratio of amount to the nearest ceiling above it: its tier's upper bound or the requester's limit.\nfunction ceilingRatio(amount, matrix, requesterLimit) {\n  var best = 0;\n  var t = tierFor(amount, matrix).tier;\n  if (t && t.maxAmount !== null && t.maxAmount !== undefined && t.maxAmount !== '') {\n    best = Math.max(best, amount / num(t.maxAmount));\n  }\n  var limit = num(requesterLimit);\n  if (limit > 0 && amount <= limit) best = Math.max(best, amount / limit);\n  return best;\n}\n\nfunction tokens(text) {\n  return String(text || '').toLowerCase().split(/[^a-z0-9]+/).filter(function (w) {\n    return w.length > 2 && !/^\\d+$/.test(w) && STOPWORDS.indexOf(w) < 0;\n  });\n}\n\nfunction jaccard(a, b) {\n  var sa = {}, sb = {}, inter = 0, union = 0, k;\n  tokens(a).forEach(function (w) { sa[w] = true; });\n  tokens(b).forEach(function (w) { sb[w] = true; });\n  for (k in sa) { union++; if (sb[k]) inter++; }\n  for (k in sb) { if (!sa[k]) union++; }\n  return union === 0 ? 0 : inter / union;\n}\n\nfunction isCandidate(anchor, pr) {\n  if (sameText(pr.vendorId, anchor.vendorId) && sameText(pr.requesterId, anchor.requesterId)) return true;\n  if (sameText(pr.vendorId, anchor.vendorId) && sameText(pr.costCenter, anchor.costCenter)) return true;\n  if (sameText(pr.projectCode, anchor.projectCode)) return true;\n  if (sameText(pr.requesterId, anchor.requesterId) && sameText(pr.category, anchor.category)) return true;\n  return false;\n}\n\nfunction validBlanket(ref, vendorId, atTime, blanketPos) {\n  for (var i = 0; i < (blanketPos || []).length; i++) {\n    var b = blanketPos[i];\n    if (sameText(b.blanketPoId, ref) && sameText(b.vendorId, vendorId)\n      && atTime >= ts(b.validFrom) && atTime <= ts(b.validTo) + DAY_MS - 1) return true;\n  }\n  return false;\n}\n\n/**\n * @param anchor  the PR being checked\n * @param prs     PRs created in the 90 days before the anchor (any requester); the anchor itself is ignored\n * @param ctx     { approvalMatrix, requester, vendor, blanketPos }\n */\nfunction scorePrs(anchor, prs, ctx) {\n  ctx = ctx || {};\n  var matrix = ctx.approvalMatrix || [];\n  var requester = ctx.requester || {};\n  var vendor = ctx.vendor || {};\n  var anchorTime = ts(anchor.createdAt);\n  var anchorAmount = num(anchor.amount);\n  var requesterLimit = num(requester.approvalLimit);\n\n  var prior = (prs || []).filter(function (p) {\n    var t = ts(p.createdAt);\n    return !sameText(p.prId, anchor.prId) && t <= anchorTime && t >= anchorTime - HISTORY_DAYS * DAY_MS\n      && EXCLUDED_STATUSES.indexOf(String(p.status)) < 0;\n  });\n  var candidates = prior.filter(function (p) {\n    return ts(p.createdAt) >= anchorTime - LOOKBACK_DAYS * DAY_MS && isCandidate(anchor, p);\n  });\n  var group = [anchor].concat(candidates);\n  var combined = group.reduce(function (s, p) { return s + num(p.amount); }, 0);\n  var anchorTier = tierFor(anchorAmount, matrix);\n  var combinedTier = tierFor(combined, matrix);\n  var crossesTier = combinedTier.index > anchorTier.index;\n  var exceedsRequesterLimit = requesterLimit > 0 && anchorAmount <= requesterLimit && combined > requesterLimit;\n\n  var signals = [];\n  function add(code, points, detail) { signals.push({ code: code, points: points, detail: detail }); }\n\n  if (candidates.length > 0) {\n    var p1 = candidates.filter(function (p) { return sameText(p.vendorId, anchor.vendorId) && sameText(p.requesterId, anchor.requesterId); });\n    if (p1.length) add('P1', 25, 'Same requester and vendor: ' + p1.map(function (p) { return p.prId; }).join(', '));\n\n    var p5 = candidates.filter(function (p) {\n      return sameText(p.vendorId, anchor.vendorId) && !sameText(p.requesterId, anchor.requesterId) && sameText(p.costCenter, anchor.costCenter);\n    });\n    if (p5.length) add('P5', 15, 'Same vendor and cost centre, different requester: ' + p5.map(function (p) { return p.prId; }).join(', '));\n\n    if (crossesTier || exceedsRequesterLimit) {\n      add('TIER', 20, 'Combined INR ' + combined + ' needs ' + (combinedTier.tier ? combinedTier.tier.tierId : '?')\n        + (crossesTier ? ' (anchor alone: ' + (anchorTier.tier ? anchorTier.tier.tierId : '?') + ')' : '')\n        + (exceedsRequesterLimit ? '; exceeds requester limit INR ' + requesterLimit : ''));\n    }\n\n    var nearAll = group.every(function (p) { return ceilingRatio(num(p.amount), matrix, requesterLimit) >= NEAR_LIMIT_MIN; });\n    if (nearAll) add('P2', 15, 'Every PR is within 85-100% of a threshold');\n\n    var times = group.map(function (p) { return ts(p.createdAt); });\n    if (Math.max.apply(null, times) - Math.min.apply(null, times) <= BURST_HOURS * 3600000) {\n      add('P6', 10, 'All PRs raised within 72 hours');\n    }\n\n    var similar = candidates.every(function (p) { return jaccard(p.description, anchor.description) >= SIMILARITY_MIN; });\n    if (similar) add('P3', 10, 'Near-identical item descriptions');\n\n    var sameProject = anchor.projectCode && group.every(function (p) { return sameText(p.projectCode, anchor.projectCode); });\n    if (sameProject) add('PROJ', 10, 'All PRs on project ' + anchor.projectCode);\n\n    var habit = prior.filter(function (p) {\n      return sameText(p.requesterId, anchor.requesterId) && ceilingRatio(num(p.amount), matrix, requesterLimit) >= HABIT_MIN;\n    });\n    if (habit.length >= 3) add('P7', 10, habit.length + ' PRs in 90 days at 90-100% of a threshold');\n\n    if (vendor.isRecurring === true || String(vendor.isRecurring).toLowerCase() === 'true') {\n      add('X_RECURRING', -20, 'Vendor ' + (vendor.name || anchor.vendorId) + ' is a recurring-spend vendor');\n    }\n\n    var blanketRef = anchor.blanketPoRef;\n    var allBlanket = blanketRef && group.every(function (p) {\n      return sameText(p.blanketPoRef, blanketRef) && validBlanket(blanketRef, p.vendorId, ts(p.createdAt), ctx.blanketPos);\n    });\n    if (allBlanket) add('X_BLANKET', -30, 'All PRs call off valid blanket PO ' + blanketRef);\n\n    var allEmergency = group.every(function (p) { return p.isEmergency === true || String(p.isEmergency).toLowerCase() === 'true'; });\n    if (allEmergency) add('X_EMERGENCY', -10, 'All PRs flagged emergency');\n  }\n\n  var total = signals.reduce(function (s, x) { return s + x.points; }, 0);\n  var score = Math.max(0, Math.min(100, total));\n  var route = score < 30 ? 'RELEASE' : score < 60 ? 'AGENT' : 'AGENT_HUMAN_REQUIRED';\n\n  return {\n    score: score,\n    route: route,\n    patterns: signals.filter(function (x) { return x.points > 0; }).map(function (x) { return x.code; }),\n    signals: signals,\n    groupPrIds: group.map(function (p) { return p.prId; }),\n    combinedAmount: combined,\n    anchorTier: anchorTier.tier ? anchorTier.tier.tierId : null,\n    combinedTier: combinedTier.tier ? combinedTier.tier.tierId : null,\n    crossesTier: crossesTier,\n    requesterLimit: requesterLimit,\n    exceedsRequesterLimit: exceedsRequesterLimit\n  };\n}\n\n\nfunction lc(o) {\n  var r = {};\n  Object.keys(o || {}).forEach(function (k) { r[k.charAt(0).toLowerCase() + k.slice(1)] = o[k]; });\n  return r;\n}\nfunction rows(step) {\n  var o = $vars[step] && $vars[step].output;\n  return ((o && o.results) || []).map(lc);\n}\nfunction strip(p) {\n  return { prId: p.prId, requesterId: p.requesterId, costCenter: p.costCenter, projectCode: p.projectCode || null,\n    vendorId: p.vendorId, category: p.category, description: p.description, quantity: p.quantity,\n    amount: Number(p.amount), deliverySite: p.deliverySite || null, blanketPoRef: p.blanketPoRef || null,\n    isEmergency: p.isEmergency === true, createdAt: p.createdAt, status: p.status };\n}\nvar prId = $vars.prId;\nvar prs = rows('loadPrs');\nvar anchor = prs.filter(function (p) { return p.prId === prId; })[0];\nif (!anchor) return { route: 'NOT_FOUND', score: 0, patterns: '', signals: '[]', groupPrIds: [], knownPrIds: [] };\nvar employees = rows('loadEmployees');\nvar vendors = rows('loadVendors');\nvar matrix = rows('loadMatrix');\nvar blanketPos = rows('loadBlankets');\n// Fail closed: without reference data the PR can't be checked, so it is held.\nif (!matrix.length || !employees.length || !vendors.length) {\n  return { route: 'UNVERIFIED', score: 0, patterns: '', signals: '[]', groupPrIds: [prId], knownPrIds: [prId],\n    recordIds: (function () { var o = {}; o[prId] = anchor.id; return o; })(), amounts: {}, combinedAmount: Number(anchor.amount),\n    combinedTier: null, summary: '', agentInput: '{}', matrix: [] };\n}\nvar requester = employees.filter(function (e) { return e.employeeId === anchor.requesterId; })[0] || {};\nvar vendor = vendors.filter(function (x) { return x.vendorId === anchor.vendorId; })[0] || {};\nvar r = scorePrs(anchor, prs, { approvalMatrix: matrix, requester: requester, vendor: vendor, blanketPos: blanketPos });\nvar group = prs.filter(function (p) { return r.groupPrIds.indexOf(p.prId) >= 0; });\nvar recordIds = {}, amounts = {};\ngroup.forEach(function (p) { recordIds[p.prId] = p.id; amounts[p.prId] = Number(p.amount); });\nvar manager = employees.filter(function (e) { return e.employeeId === requester.managerId; })[0] || {};\nvar agentInput = {\n  anchorPr: strip(anchor),\n  candidatePrs: group.filter(function (p) { return p.prId !== prId; }).map(strip),\n  ruleResult: { score: r.score, patterns: r.patterns, signals: r.signals, combinedAmount: r.combinedAmount,\n    anchorTier: r.anchorTier, combinedTier: r.combinedTier, crossesTier: r.crossesTier,\n    requesterLimit: r.requesterLimit, exceedsRequesterLimit: r.exceedsRequesterLimit },\n  approvalMatrix: matrix.map(function (t) { return { tierId: t.tierId, minAmount: t.minAmount, maxAmount: t.maxAmount,\n    approverRole: t.approverRole, quotesRequired: t.quotesRequired, rfqRequired: t.rfqRequired }; }),\n  vendor: { vendorId: vendor.vendorId, name: vendor.name, category: vendor.category, isRecurring: vendor.isRecurring === true },\n  requester: { employeeId: requester.employeeId, name: requester.name, costCenter: requester.costCenter,\n    role: requester.role, approvalLimit: requester.approvalLimit },\n  blanketPos: blanketPos.map(function (b) { return { blanketPoId: b.blanketPoId, vendorId: b.vendorId,\n    validFrom: b.validFrom, validTo: b.validTo, approvedAmount: b.approvedAmount }; })\n};\nvar summary = group.map(function (p) {\n  return p.prId + ' | ' + String(p.createdAt).slice(0, 10) + ' | ' + p.vendorId + ' | ' + p.description + ' | INR ' + Number(p.amount);\n}).join('\\n');\nreturn {\n  route: r.route, score: r.score, patterns: r.patterns.join(','), signals: JSON.stringify(r.signals),\n  groupPrIds: r.groupPrIds, knownPrIds: r.groupPrIds, recordIds: recordIds, amounts: amounts,\n  anchorRecordId: anchor.id, combinedAmount: r.combinedAmount, combinedTier: r.combinedTier,\n  requesterName: requester.name || anchor.requesterId, requesterEmail: requester.email || '',\n  managerEmail: manager.email || '', agentInput: JSON.stringify(agentInput), summary: summary,\n  matrix: agentInput.approvalMatrix\n};\n",
+        "script": "\n// SplitSentinel rule engine.\n// Pure function, no I/O. The Flow's rule-engine script node inlines this file's source,\n// so keep it plain ES2019 (no imports, no top-level await) and change it only here.\n\nvar DAY_MS = 86400000;\nvar LOOKBACK_DAYS = 30;\nvar HISTORY_DAYS = 90;\nvar NEAR_LIMIT_MIN = 0.85;\nvar HABIT_MIN = 0.9;\nvar BURST_HOURS = 72;\nvar SIMILARITY_MIN = 0.7;\nvar EXCLUDED_STATUSES = ['Draft', 'Rejected'];\nvar STOPWORDS = ['and', 'for', 'the', 'with', 'from', 'pcs', 'nos', 'qty', 'units', 'set', 'of'];\n\nfunction num(x) {\n  var n = Number(x);\n  return isFinite(n) ? n : 0;\n}\n\nfunction ts(x) {\n  var t = Date.parse(x);\n  return isFinite(t) ? t : 0;\n}\n\nfunction sameText(a, b) {\n  return a != null && b != null && String(a).trim() !== '' && String(a).trim().toLowerCase() === String(b).trim().toLowerCase();\n}\n\nfunction sortedTiers(matrix) {\n  return (matrix || []).slice().sort(function (a, b) { return num(a.minAmount) - num(b.minAmount); });\n}\n\nfunction tierFor(amount, matrix) {\n  var tiers = sortedTiers(matrix);\n  for (var i = 0; i < tiers.length; i++) {\n    var max = tiers[i].maxAmount;\n    var hasMax = max !== null && max !== undefined && max !== '';\n    if (amount >= num(tiers[i].minAmount) && (!hasMax || amount < num(max))) {\n      return { tier: tiers[i], index: i };\n    }\n  }\n  return { tier: null, index: -1 };\n}\n\n// Ratio of amount to the nearest ceiling above it: its tier's upper bound or the requester's limit.\nfunction ceilingRatio(amount, matrix, requesterLimit) {\n  var best = 0;\n  var t = tierFor(amount, matrix).tier;\n  if (t && t.maxAmount !== null && t.maxAmount !== undefined && t.maxAmount !== '') {\n    best = Math.max(best, amount / num(t.maxAmount));\n  }\n  var limit = num(requesterLimit);\n  if (limit > 0 && amount <= limit) best = Math.max(best, amount / limit);\n  return best;\n}\n\nfunction tokens(text) {\n  return String(text || '').toLowerCase().split(/[^a-z0-9]+/).filter(function (w) {\n    return w.length > 2 && !/^\\d+$/.test(w) && STOPWORDS.indexOf(w) < 0;\n  });\n}\n\nfunction jaccard(a, b) {\n  var sa = {}, sb = {}, inter = 0, union = 0, k;\n  tokens(a).forEach(function (w) { sa[w] = true; });\n  tokens(b).forEach(function (w) { sb[w] = true; });\n  for (k in sa) { union++; if (sb[k]) inter++; }\n  for (k in sb) { if (!sa[k]) union++; }\n  return union === 0 ? 0 : inter / union;\n}\n\nfunction isCandidate(anchor, pr) {\n  if (sameText(pr.vendorId, anchor.vendorId) && sameText(pr.requesterId, anchor.requesterId)) return true;\n  if (sameText(pr.vendorId, anchor.vendorId) && sameText(pr.costCenter, anchor.costCenter)) return true;\n  if (sameText(pr.projectCode, anchor.projectCode)) return true;\n  if (sameText(pr.requesterId, anchor.requesterId) && sameText(pr.category, anchor.category)) return true;\n  return false;\n}\n\nfunction validBlanket(ref, vendorId, atTime, blanketPos) {\n  for (var i = 0; i < (blanketPos || []).length; i++) {\n    var b = blanketPos[i];\n    if (sameText(b.blanketPoId, ref) && sameText(b.vendorId, vendorId)\n      && atTime >= ts(b.validFrom) && atTime <= ts(b.validTo) + DAY_MS - 1) return true;\n  }\n  return false;\n}\n\n/**\n * @param anchor  the PR being checked\n * @param prs     PRs created in the 90 days before the anchor (any requester); the anchor itself is ignored\n * @param ctx     { approvalMatrix, requester, vendor, blanketPos }\n */\nfunction scorePrs(anchor, prs, ctx) {\n  ctx = ctx || {};\n  var matrix = ctx.approvalMatrix || [];\n  var requester = ctx.requester || {};\n  var vendor = ctx.vendor || {};\n  var anchorTime = ts(anchor.createdAt);\n  var anchorAmount = num(anchor.amount);\n  var requesterLimit = num(requester.approvalLimit);\n\n  var prior = (prs || []).filter(function (p) {\n    var t = ts(p.createdAt);\n    return !sameText(p.prId, anchor.prId) && t <= anchorTime && t >= anchorTime - HISTORY_DAYS * DAY_MS\n      && EXCLUDED_STATUSES.indexOf(String(p.status)) < 0;\n  });\n  var candidates = prior.filter(function (p) {\n    return ts(p.createdAt) >= anchorTime - LOOKBACK_DAYS * DAY_MS && isCandidate(anchor, p);\n  });\n  var group = [anchor].concat(candidates);\n  var combined = group.reduce(function (s, p) { return s + num(p.amount); }, 0);\n  var anchorTier = tierFor(anchorAmount, matrix);\n  var combinedTier = tierFor(combined, matrix);\n  var crossesTier = combinedTier.index > anchorTier.index;\n  var exceedsRequesterLimit = requesterLimit > 0 && anchorAmount <= requesterLimit && combined > requesterLimit;\n\n  var signals = [];\n  function add(code, points, detail) { signals.push({ code: code, points: points, detail: detail }); }\n\n  if (candidates.length > 0) {\n    var p1 = candidates.filter(function (p) { return sameText(p.vendorId, anchor.vendorId) && sameText(p.requesterId, anchor.requesterId); });\n    if (p1.length) add('P1', 25, 'Same requester and vendor: ' + p1.map(function (p) { return p.prId; }).join(', '));\n\n    var p5 = candidates.filter(function (p) {\n      return sameText(p.vendorId, anchor.vendorId) && !sameText(p.requesterId, anchor.requesterId) && sameText(p.costCenter, anchor.costCenter);\n    });\n    if (p5.length) add('P5', 15, 'Same vendor and cost centre, different requester: ' + p5.map(function (p) { return p.prId; }).join(', '));\n\n    if (crossesTier || exceedsRequesterLimit) {\n      add('TIER', 20, 'Combined INR ' + combined + ' needs ' + (combinedTier.tier ? combinedTier.tier.tierId : '?')\n        + (crossesTier ? ' (anchor alone: ' + (anchorTier.tier ? anchorTier.tier.tierId : '?') + ')' : '')\n        + (exceedsRequesterLimit ? '; exceeds requester limit INR ' + requesterLimit : ''));\n    }\n\n    var nearAll = group.every(function (p) { return ceilingRatio(num(p.amount), matrix, requesterLimit) >= NEAR_LIMIT_MIN; });\n    if (nearAll) add('P2', 15, 'Every PR is within 85-100% of a threshold');\n\n    var times = group.map(function (p) { return ts(p.createdAt); });\n    if (Math.max.apply(null, times) - Math.min.apply(null, times) <= BURST_HOURS * 3600000) {\n      add('P6', 10, 'All PRs raised within 72 hours');\n    }\n\n    var similar = candidates.every(function (p) { return jaccard(p.description, anchor.description) >= SIMILARITY_MIN; });\n    if (similar) add('P3', 10, 'Near-identical item descriptions');\n\n    var sameProject = anchor.projectCode && group.every(function (p) { return sameText(p.projectCode, anchor.projectCode); });\n    if (sameProject) add('PROJ', 10, 'All PRs on project ' + anchor.projectCode);\n\n    var habit = prior.filter(function (p) {\n      return sameText(p.requesterId, anchor.requesterId) && ceilingRatio(num(p.amount), matrix, requesterLimit) >= HABIT_MIN;\n    });\n    if (habit.length >= 3) add('P7', 10, habit.length + ' PRs in 90 days at 90-100% of a threshold');\n\n    if (vendor.isRecurring === true || String(vendor.isRecurring).toLowerCase() === 'true') {\n      add('X_RECURRING', -20, 'Vendor ' + (vendor.name || anchor.vendorId) + ' is a recurring-spend vendor');\n    }\n\n    var blanketRef = anchor.blanketPoRef;\n    var allBlanket = blanketRef && group.every(function (p) {\n      return sameText(p.blanketPoRef, blanketRef) && validBlanket(blanketRef, p.vendorId, ts(p.createdAt), ctx.blanketPos);\n    });\n    if (allBlanket) add('X_BLANKET', -30, 'All PRs call off valid blanket PO ' + blanketRef);\n\n    var allEmergency = group.every(function (p) { return p.isEmergency === true || String(p.isEmergency).toLowerCase() === 'true'; });\n    if (allEmergency) add('X_EMERGENCY', -10, 'All PRs flagged emergency');\n  }\n\n  var total = signals.reduce(function (s, x) { return s + x.points; }, 0);\n  var score = Math.max(0, Math.min(100, total));\n  var route = score < 30 ? 'RELEASE' : score < 60 ? 'AGENT' : 'AGENT_HUMAN_REQUIRED';\n\n  return {\n    score: score,\n    route: route,\n    patterns: signals.filter(function (x) { return x.points > 0; }).map(function (x) { return x.code; }),\n    signals: signals,\n    groupPrIds: group.map(function (p) { return p.prId; }),\n    combinedAmount: combined,\n    anchorTier: anchorTier.tier ? anchorTier.tier.tierId : null,\n    combinedTier: combinedTier.tier ? combinedTier.tier.tierId : null,\n    crossesTier: crossesTier,\n    requesterLimit: requesterLimit,\n    exceedsRequesterLimit: exceedsRequesterLimit\n  };\n}\n\n\nfunction lc(o) {\n  var r = {};\n  Object.keys(o || {}).forEach(function (k) { r[k.charAt(0).toLowerCase() + k.slice(1)] = o[k]; });\n  return r;\n}\nfunction rows(step) {\n  var o = $vars[step] && $vars[step].output;\n  return ((o && o.results) || []).map(lc);\n}\nfunction strip(p) {\n  return { prId: p.prId, requesterId: p.requesterId, costCenter: p.costCenter, projectCode: p.projectCode || null,\n    vendorId: p.vendorId, category: p.category, description: p.description, quantity: p.quantity,\n    amount: Number(p.amount), deliverySite: p.deliverySite || null, blanketPoRef: p.blanketPoRef || null,\n    isEmergency: p.isEmergency === true, createdAt: p.createdAt, status: p.status };\n}\nvar prId = $vars.prId;\nvar prs = rows('loadPrs');\nvar anchor = prs.filter(function (p) { return p.prId === prId; })[0];\nif (!anchor) return { route: 'NOT_FOUND', score: 0, patterns: '', signals: '[]', groupPrIds: [], knownPrIds: [] };\n// Only submitted PRs are checked for real; what-if runs may re-check a PR in any status.\nif (!$vars.dryRun && anchor.status !== 'Submitted') {\n  return { route: 'NOT_SUBMITTED', score: 0, patterns: '', signals: '[]', groupPrIds: [], knownPrIds: [] };\n}\nvar employees = rows('loadEmployees');\nvar vendors = rows('loadVendors');\nvar matrix = rows('loadMatrix');\nvar blanketPos = rows('loadBlankets');\n// Fail closed: without reference data the PR can't be checked, so it is held.\nif (!matrix.length || !employees.length || !vendors.length) {\n  return { route: 'UNVERIFIED', score: 0, patterns: '', signals: '[]', groupPrIds: [prId], knownPrIds: [prId],\n    recordIds: (function () { var o = {}; o[prId] = anchor.id; return o; })(), amounts: {}, combinedAmount: Number(anchor.amount),\n    combinedTier: null, summary: '', agentInput: '{}', matrix: [] };\n}\nvar requester = employees.filter(function (e) { return e.employeeId === anchor.requesterId; })[0] || {};\nvar vendor = vendors.filter(function (x) { return x.vendorId === anchor.vendorId; })[0] || {};\nvar r = scorePrs(anchor, prs, { approvalMatrix: matrix, requester: requester, vendor: vendor, blanketPos: blanketPos });\nvar group = prs.filter(function (p) { return r.groupPrIds.indexOf(p.prId) >= 0; });\nvar recordIds = {}, amounts = {};\ngroup.forEach(function (p) { recordIds[p.prId] = p.id; amounts[p.prId] = Number(p.amount); });\nvar manager = employees.filter(function (e) { return e.employeeId === requester.managerId; })[0] || {};\nvar agentInput = {\n  anchorPr: strip(anchor),\n  candidatePrs: group.filter(function (p) { return p.prId !== prId; }).map(strip),\n  ruleResult: { score: r.score, patterns: r.patterns, signals: r.signals, combinedAmount: r.combinedAmount,\n    anchorTier: r.anchorTier, combinedTier: r.combinedTier, crossesTier: r.crossesTier,\n    requesterLimit: r.requesterLimit, exceedsRequesterLimit: r.exceedsRequesterLimit },\n  approvalMatrix: matrix.map(function (t) { return { tierId: t.tierId, minAmount: t.minAmount, maxAmount: t.maxAmount,\n    approverRole: t.approverRole, quotesRequired: t.quotesRequired, rfqRequired: t.rfqRequired }; }),\n  vendor: { vendorId: vendor.vendorId, name: vendor.name, category: vendor.category, isRecurring: vendor.isRecurring === true },\n  requester: { employeeId: requester.employeeId, name: requester.name, costCenter: requester.costCenter,\n    role: requester.role, approvalLimit: requester.approvalLimit },\n  blanketPos: blanketPos.map(function (b) { return { blanketPoId: b.blanketPoId, vendorId: b.vendorId,\n    validFrom: b.validFrom, validTo: b.validTo, approvedAmount: b.approvedAmount }; })\n};\nvar summary = group.map(function (p) {\n  return p.prId + ' | ' + String(p.createdAt).slice(0, 10) + ' | ' + p.vendorId + ' | ' + p.description + ' | INR ' + Number(p.amount);\n}).join('\\n');\nreturn {\n  route: r.route, score: r.score, patterns: r.patterns.join(','), signals: JSON.stringify(r.signals),\n  groupPrIds: r.groupPrIds, knownPrIds: r.groupPrIds, recordIds: recordIds, amounts: amounts,\n  anchorRecordId: anchor.id, combinedAmount: r.combinedAmount, combinedTier: r.combinedTier,\n  requesterName: requester.name || anchor.requesterId, requesterEmail: requester.email || '',\n  managerEmail: manager.email || '', agentInput: JSON.stringify(agentInput), summary: summary,\n  matrix: agentInput.approvalMatrix\n};\n",
         "errorHandlingEnabled": true
       }
     },
@@ -598,6 +690,26 @@
           },
           "var": "humanDecisionValue"
         },
+        "prId": {
+          "type": "string",
+          "description": "",
+          "source": {
+            "type": "jsExpression",
+            "expression": "$vars.prId",
+            "fieldType": "string"
+          },
+          "var": "prId"
+        },
+        "dryRun": {
+          "type": "boolean",
+          "description": "",
+          "source": {
+            "type": "jsExpression",
+            "expression": "$vars.dryRun",
+            "fieldType": "boolean"
+          },
+          "var": "dryRun"
+        },
         "finalPrStatus": {
           "type": "string",
           "description": "",
@@ -647,16 +759,6 @@
             "fieldType": "string"
           },
           "var": "humanComment"
-        },
-        "prId": {
-          "type": "string",
-          "description": "",
-          "source": {
-            "type": "jsExpression",
-            "expression": "$vars.prId",
-            "fieldType": "string"
-          },
-          "var": "prId"
         }
       }
     },
@@ -675,16 +777,21 @@
         "cases": [
           {
             "id": "case_1",
+            "label": "Case \"NOT_SUBMITTED\"",
+            "expression": "$vars.rules.output.route === \"NOT_SUBMITTED\""
+          },
+          {
+            "id": "case_2",
             "label": "Case \"NOT_FOUND\"",
             "expression": "$vars.rules.output.route === \"NOT_FOUND\""
           },
           {
-            "id": "case_2",
+            "id": "case_3",
             "label": "Case \"RELEASE\"",
             "expression": "$vars.rules.output.route === \"RELEASE\""
           },
           {
-            "id": "case_3",
+            "id": "case_4",
             "label": "Case \"UNVERIFIED\"",
             "expression": "$vars.rules.output.route === \"UNVERIFIED\""
           }
@@ -694,6 +801,171 @@
     },
     {
       "id": "end3",
+      "type": "core.control.end",
+      "typeVersion": "1.0.0",
+      "display": {
+        "label": "End",
+        "icon": "circle-check"
+      },
+      "model": {
+        "type": "bpmn:EndEvent"
+      },
+      "inputs": {},
+      "outputs": {
+        "caseId": {
+          "type": "string",
+          "description": "",
+          "source": {
+            "type": "jsExpression",
+            "expression": "\"\"",
+            "fieldType": "string"
+          },
+          "var": "caseId"
+        },
+        "outcome": {
+          "type": "string",
+          "description": "",
+          "source": {
+            "type": "jsExpression",
+            "expression": "\"Skipped\"",
+            "fieldType": "string"
+          },
+          "var": "outcome"
+        },
+        "path": {
+          "type": "string",
+          "description": "",
+          "source": {
+            "type": "jsExpression",
+            "expression": "\"NOT_SUBMITTED\"",
+            "fieldType": "string"
+          },
+          "var": "path"
+        },
+        "ruleScore": {
+          "type": "number",
+          "description": "",
+          "source": {
+            "type": "jsExpression",
+            "expression": "0",
+            "fieldType": "number"
+          },
+          "var": "ruleScore"
+        },
+        "agentVerdict": {
+          "type": "string",
+          "description": "",
+          "source": {
+            "type": "jsExpression",
+            "expression": "\"NOT_RUN\"",
+            "fieldType": "string"
+          },
+          "var": "agentVerdict"
+        },
+        "humanDecision": {
+          "type": "string",
+          "description": "",
+          "source": {
+            "type": "jsExpression",
+            "expression": "\"\"",
+            "fieldType": "string"
+          },
+          "var": "humanDecision"
+        },
+        "pathValue": {
+          "type": "string",
+          "description": "",
+          "source": {
+            "type": "jsExpression",
+            "expression": "$vars.pathValue",
+            "fieldType": "string"
+          },
+          "var": "pathValue"
+        },
+        "humanDecisionValue": {
+          "type": "string",
+          "description": "",
+          "source": {
+            "type": "jsExpression",
+            "expression": "$vars.humanDecisionValue",
+            "fieldType": "string"
+          },
+          "var": "humanDecisionValue"
+        },
+        "prId": {
+          "type": "string",
+          "description": "",
+          "source": {
+            "type": "jsExpression",
+            "expression": "$vars.prId",
+            "fieldType": "string"
+          },
+          "var": "prId"
+        },
+        "dryRun": {
+          "type": "boolean",
+          "description": "",
+          "source": {
+            "type": "jsExpression",
+            "expression": "$vars.dryRun",
+            "fieldType": "boolean"
+          },
+          "var": "dryRun"
+        },
+        "finalPrStatus": {
+          "type": "string",
+          "description": "",
+          "source": {
+            "type": "jsExpression",
+            "expression": "$vars.finalPrStatus",
+            "fieldType": "string"
+          },
+          "var": "finalPrStatus"
+        },
+        "needsReview": {
+          "type": "boolean",
+          "description": "",
+          "source": {
+            "type": "jsExpression",
+            "expression": "$vars.needsReview",
+            "fieldType": "boolean"
+          },
+          "var": "needsReview"
+        },
+        "agentResult": {
+          "type": "object",
+          "description": "",
+          "source": {
+            "type": "jsExpression",
+            "expression": "$vars.agentResult",
+            "fieldType": "object"
+          },
+          "var": "agentResult"
+        },
+        "justification": {
+          "type": "string",
+          "description": "",
+          "source": {
+            "type": "jsExpression",
+            "expression": "$vars.justification",
+            "fieldType": "string"
+          },
+          "var": "justification"
+        },
+        "humanComment": {
+          "type": "string",
+          "description": "",
+          "source": {
+            "type": "jsExpression",
+            "expression": "$vars.humanComment",
+            "fieldType": "string"
+          },
+          "var": "humanComment"
+        }
+      }
+    },
+    {
+      "id": "end4",
       "type": "core.control.end",
       "typeVersion": "1.0.0",
       "display": {
@@ -785,6 +1057,26 @@
           },
           "var": "humanDecisionValue"
         },
+        "prId": {
+          "type": "string",
+          "description": "",
+          "source": {
+            "type": "jsExpression",
+            "expression": "$vars.prId",
+            "fieldType": "string"
+          },
+          "var": "prId"
+        },
+        "dryRun": {
+          "type": "boolean",
+          "description": "",
+          "source": {
+            "type": "jsExpression",
+            "expression": "$vars.dryRun",
+            "fieldType": "boolean"
+          },
+          "var": "dryRun"
+        },
         "finalPrStatus": {
           "type": "string",
           "description": "",
@@ -834,16 +1126,6 @@
             "fieldType": "string"
           },
           "var": "humanComment"
-        },
-        "prId": {
-          "type": "string",
-          "description": "",
-          "source": {
-            "type": "jsExpression",
-            "expression": "$vars.prId",
-            "fieldType": "string"
-          },
-          "var": "prId"
         }
       }
     },
@@ -2975,7 +3257,7 @@
         }
       },
       "inputs": {
-        "script": "\nvar st = $vars.finalPrStatus;\nvar rules = $vars.rules.output;\nvar a = $vars.agentResult || {};\nvar related = (a.relatedPrIds && a.relatedPrIds.length) ? a.relatedPrIds : rules.groupPrIds;\nvar targets = (st === 'Consolidated' || st === 'Rejected') ? related : [$vars.prId];\nvar log = [\n  'rules: score ' + rules.score + ' [' + rules.patterns + '] route ' + rules.route,\n  'agent: ' + (a.verdict || 'NOT_RUN') + (a.corrections ? ' (corrected: ' + a.corrections + ')' : ''),\n  'path: ' + $vars.pathValue,\n  'human: ' + ($vars.humanDecisionValue || 'none'),\n  'final: ' + st + ' -> ' + targets.join(',')\n].join('\\n');\nreturn {\n  caseId: 'SC-' + $vars.prId,\n  targetRecordIds: targets.map(function (x) { return rules.recordIds[x]; }).filter(function (x) { return x; }),\n  relatedPrIds: related.join(','),\n  agentVerdict: a.verdict || 'NOT_RUN',\n  runLog: log\n};\n"
+        "script": "\nvar st = $vars.finalPrStatus;\nvar rules = $vars.rules.output;\nvar a = $vars.agentResult || {};\nvar related = (a.relatedPrIds && a.relatedPrIds.length) ? a.relatedPrIds : rules.groupPrIds;\nvar targets = $vars.dryRun ? [] : (st === 'Consolidated' || st === 'Rejected') ? related : [$vars.prId];\nvar log = [\n  'rules: score ' + rules.score + ' [' + rules.patterns + '] route ' + rules.route,\n  'agent: ' + (a.verdict || 'NOT_RUN') + (a.corrections ? ' (corrected: ' + a.corrections + ')' : ''),\n  'path: ' + $vars.pathValue,\n  'human: ' + ($vars.humanDecisionValue || 'none'),\n  'final: ' + st + ' -> ' + ($vars.dryRun ? 'what-if run, no PR updated' : targets.join(','))\n].join('\\n');\nreturn {\n  caseId: ($vars.dryRun ? 'WHATIF-' + $vars.prId + '-' + Date.now() : 'SC-' + $vars.prId),\n  targetRecordIds: targets.map(function (x) { return rules.recordIds[x]; }).filter(function (x) { return x; }),\n  relatedPrIds: related.join(','),\n  agentVerdict: a.verdict || 'NOT_RUN',\n  runLog: log\n};\n"
       }
     },
     {
@@ -3229,7 +3511,359 @@
       }
     },
     {
-      "id": "end4",
+      "id": "notifyNeeded",
+      "type": "core.logic.decision",
+      "typeVersion": "1.0.0",
+      "display": {
+        "label": "notifyNeeded",
+        "icon": "trending-up-down"
+      },
+      "model": {
+        "type": "bpmn:InclusiveGateway"
+      },
+      "inputs": {
+        "trueLabel": "True",
+        "falseLabel": "False",
+        "expression": "!$vars.dryRun && !!$vars.rules.output.requesterEmail"
+      }
+    },
+    {
+      "id": "notifyText",
+      "type": "core.action.script",
+      "typeVersion": "1.0.0",
+      "display": {
+        "label": "notifyText",
+        "icon": "code"
+      },
+      "model": {
+        "type": "bpmn:ScriptTask"
+      },
+      "outputs": {
+        "output": {
+          "type": "object",
+          "description": "The return value of the script",
+          "source": {
+            "type": "literal",
+            "expression": "=result.response",
+            "fieldType": "string"
+          },
+          "var": "output",
+          "properties": {
+            "to": {
+              "type": "string"
+            },
+            "cc": {
+              "type": "string"
+            },
+            "subject": {
+              "type": "string"
+            },
+            "body": {
+              "type": "string"
+            }
+          }
+        },
+        "error": {
+          "type": "object",
+          "description": "Error information if the script fails",
+          "source": {
+            "type": "literal",
+            "expression": "=result.Error",
+            "fieldType": "string"
+          },
+          "var": "error",
+          "schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "detail",
+              "category",
+              "status"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Error code as a string"
+              },
+              "message": {
+                "type": "string",
+                "description": "High-level error message"
+              },
+              "detail": {
+                "type": "string",
+                "description": "Detailed error description"
+              },
+              "category": {
+                "type": "string",
+                "description": "Error category"
+              },
+              "status": {
+                "type": "integer",
+                "description": "HTTP status code"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "inputs": {
+        "script": "\nvar rules = $vars.rules.output;\nvar a = $vars.agentResult || {};\nvar st = $vars.finalPrStatus;\nvar caseId = $vars.finalize.output.caseId;\nvar related = $vars.finalize.output.relatedPrIds;\nvar amount = a.combinedAmount || rules.combinedAmount;\nvar tier = a.requiredApprovalTier || rules.combinedTier;\nvar hi = 'Hi ' + rules.requesterName + ',\\n\\n';\nvar foot = '\\n\\nSplitSentinel case: ' + caseId;\nvar subject, body;\nif (st === 'Consolidated') {\n  subject = 'PRs ' + related + ' consolidated';\n  body = hi + 'Your requisitions ' + related + ' were reviewed and consolidated into one requirement of INR ' + amount\n    + '. It now goes through tier ' + tier + ' approval' + (a.competitiveBidRequired ? ' and a competitive bid (RFQ)' : '') + '.'\n    + ($vars.humanComment ? '\\n\\nComment: ' + $vars.humanComment : '') + foot;\n} else if (st === 'Rejected') {\n  subject = 'PR ' + $vars.prId + ' rejected';\n  body = hi + 'Requisition(s) ' + related + ' were rejected.' + ($vars.humanComment ? '\\n\\nComment: ' + $vars.humanComment : '') + foot;\n} else if (st === 'Unverified') {\n  subject = 'PR ' + $vars.prId + ' on hold: check could not be completed';\n  body = hi + 'SplitSentinel could not load the data needed to check PR ' + $vars.prId + ', so it is on hold. Procurement operations will re-run the check.' + foot;\n} else {\n  subject = 'PR ' + $vars.prId + ' approved for normal routing';\n  body = hi + 'Your purchase requisition ' + $vars.prId + ' passed the SplitSentinel check and continues through normal approval.'\n    + ($vars.humanDecisionValue ? '\\n\\nReviewer decision: ' + $vars.humanDecisionValue + ($vars.humanComment ? ' (' + $vars.humanComment + ')' : '') : '') + foot;\n}\nreturn { to: rules.requesterEmail, cc: (st === 'Consolidated' || st === 'Rejected') ? rules.managerEmail : '', subject: 'SplitSentinel: ' + subject, body: body };\n"
+      }
+    },
+    {
+      "id": "notify",
+      "type": "uipath.connector.uipath-google-gmail.send-email",
+      "typeVersion": "1.0.0",
+      "display": {
+        "label": "notify",
+        "icon": "https://alpha.uipath.com/311c6049-4966-4ef2-a6f3-8ceccaf38d54/studio_/typecache/icons/70091673b4573a26ec5090fa697c3bf61a0bedf4c77a302986b69d53bea30191.svg"
+      },
+      "model": {
+        "type": "bpmn:SendTask",
+        "serviceType": "Intsvc.ActivityExecution",
+        "bindings": {
+          "resource": "connection",
+          "resourceKey": "",
+          "values": [
+            {
+              "name": "uipath-google-gmail connection",
+              "propertyAttribute": "ConnectionId"
+            },
+            {
+              "name": "FolderKey",
+              "propertyAttribute": "FolderKey"
+            }
+          ]
+        },
+        "context": [
+          {
+            "name": "connectorKey",
+            "type": "string",
+            "value": "uipath-google-gmail"
+          },
+          {
+            "name": "operation",
+            "type": "string"
+          },
+          {
+            "name": "objectName",
+            "value": "SendEmail",
+            "type": "string"
+          },
+          {
+            "name": "method",
+            "type": "string",
+            "value": "POST"
+          },
+          {
+            "name": "connection",
+            "type": "string",
+            "value": "<bindings.uipath-google-gmail connection>"
+          },
+          {
+            "name": "folderKey",
+            "type": "string",
+            "value": "<bindings.FolderKey>"
+          },
+          {
+            "name": "activityConfigurationVersion",
+            "type": "string",
+            "value": "v1"
+          },
+          {
+            "name": "metadata",
+            "body": {
+              "telemetryData": {
+                "connectorKey": "uipath-google-gmail",
+                "connectorName": "Send Email"
+              },
+              "inputMetadata": {},
+              "errorState": {
+                "hasError": true
+              }
+            },
+            "type": "json"
+          }
+        ]
+      },
+      "outputs": {
+        "output": {
+          "type": "object",
+          "description": "The return value of the connector.",
+          "source": {
+            "type": "literal",
+            "expression": "=result.response",
+            "fieldType": "string"
+          },
+          "var": "output"
+        },
+        "error": {
+          "type": "object",
+          "description": "Error information if the node fails",
+          "source": {
+            "type": "literal",
+            "expression": "=Error",
+            "fieldType": "string"
+          },
+          "var": "error",
+          "schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "detail",
+              "category",
+              "status"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Error code as a string"
+              },
+              "message": {
+                "type": "string",
+                "description": "High-level error message"
+              },
+              "detail": {
+                "type": "string",
+                "description": "Detailed error description"
+              },
+              "category": {
+                "type": "string",
+                "description": "Error category"
+              },
+              "status": {
+                "type": "integer",
+                "description": "HTTP status code"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "inputs": {
+        "detail": {
+          "connector": "uipath-google-gmail",
+          "method": "POST",
+          "endpoint": "/SendEmail",
+          "objectName": "SendEmail",
+          "inputMetadata": {
+            "type": "multipart",
+            "multipart": {
+              "bodyFieldName": "body"
+            }
+          },
+          "errorState": {
+            "hasError": false
+          },
+          "telemetryData": {
+            "connectorKey": "uipath-google-gmail",
+            "connectorName": ""
+          },
+          "configuration": "=jsonString:{\"essentialConfiguration\":{\"customFieldsRequestDetails\":null,\"executionType\":null,\"operation\":\"create\",\"packageVersion\":\"1.0.0\",\"connectorVersion\":null,\"unifiedTypesCompatible\":true,\"savedFilterTrees\":null,\"objectName\":\"SendEmail\",\"httpMethod\":\"POST\",\"instanceParameters\":{\"connectorKey\":\"uipath-google-gmail\",\"objectName\":\"SendEmail\",\"httpMethod\":\"POST\",\"activityType\":\"Curated\",\"version\":\"1.0.0\",\"supportsStreaming\":false,\"subType\":\"standard\"},\"path\":\"/SendEmail\"}}",
+          "uiPathActivityTypeId": "f2a5320d-a0d1-3aec-af8f-5b16ad9665a0",
+          "connectionId": "66dfd117-f846-4b6f-899c-c834852ce1dc",
+          "connectionResourceId": "66dfd117-f846-4b6f-899c-c834852ce1dc",
+          "connectionFolderKey": "179dba0b-3aef-485e-ae12-24aa686ed19f",
+          "bodyParameters": {
+            "Body": "=js:$vars.notifyText.output.body",
+            "CC": "=js:$vars.notifyText.output.cc",
+            "Subject": "=js:$vars.notifyText.output.subject",
+            "To": "=js:$vars.notifyText.output.to"
+          },
+          "queryParameters": {
+            "SaveAsDraft": true
+          },
+          "multipartParameters": [
+            {
+              "name": "file",
+              "dataType": "file"
+            },
+            {
+              "name": "body",
+              "dataType": "string"
+            }
+          ]
+        },
+        "errorHandlingEnabled": true
+      }
+    },
+    {
+      "id": "notifyDone",
+      "type": "core.action.script",
+      "typeVersion": "1.0.0",
+      "display": {
+        "label": "notifyDone",
+        "icon": "code"
+      },
+      "model": {
+        "type": "bpmn:ScriptTask"
+      },
+      "outputs": {
+        "output": {
+          "type": "string",
+          "description": "The return value of the script",
+          "source": {
+            "type": "literal",
+            "expression": "=result.response",
+            "fieldType": "string"
+          },
+          "var": "output"
+        },
+        "error": {
+          "type": "object",
+          "description": "Error information if the script fails",
+          "source": {
+            "type": "literal",
+            "expression": "=result.Error",
+            "fieldType": "string"
+          },
+          "var": "error",
+          "schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "detail",
+              "category",
+              "status"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Error code as a string"
+              },
+              "message": {
+                "type": "string",
+                "description": "High-level error message"
+              },
+              "detail": {
+                "type": "string",
+                "description": "Detailed error description"
+              },
+              "category": {
+                "type": "string",
+                "description": "Error category"
+              },
+              "status": {
+                "type": "integer",
+                "description": "HTTP status code"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "inputs": {
+        "script": "return 'notified';"
+      }
+    },
+    {
+      "id": "end5",
       "type": "core.control.end",
       "typeVersion": "1.0.0",
       "display": {
@@ -3321,6 +3955,26 @@
           },
           "var": "humanDecisionValue"
         },
+        "prId": {
+          "type": "string",
+          "description": "",
+          "source": {
+            "type": "jsExpression",
+            "expression": "$vars.prId",
+            "fieldType": "string"
+          },
+          "var": "prId"
+        },
+        "dryRun": {
+          "type": "boolean",
+          "description": "",
+          "source": {
+            "type": "jsExpression",
+            "expression": "$vars.dryRun",
+            "fieldType": "boolean"
+          },
+          "var": "dryRun"
+        },
         "finalPrStatus": {
           "type": "string",
           "description": "",
@@ -3370,17 +4024,250 @@
             "fieldType": "string"
           },
           "var": "humanComment"
+        }
+      }
+    },
+    {
+      "id": "onPrCreated",
+      "type": "uipath.connector.trigger.uipath-uipath-dataservice.record-created",
+      "typeVersion": "1.0.0",
+      "display": {
+        "label": "Record Created",
+        "icon": "https://cloud.uipath.com/bdee616a-d8c8-43cd-a9cf-13f5326ccee4/studio_/typecache/icons/98381fa079bbcf73264f551006d6ef7580fb53992f3d9f94361eb5d9e06040cb.svg"
+      },
+      "model": {
+        "type": "bpmn:StartEvent",
+        "entryPointId": true,
+        "serviceType": "Intsvc.EventTrigger",
+        "eventDefinition": "bpmn:MessageEventDefinition",
+        "bindings": {
+          "resource": "connection",
+          "resourceKey": "",
+          "values": [
+            {
+              "name": "uipath-uipath-dataservice connection",
+              "propertyAttribute": "ConnectionId"
+            },
+            {
+              "name": "FolderKey",
+              "propertyAttribute": "FolderKey"
+            }
+          ]
         },
-        "prId": {
-          "type": "string",
-          "description": "",
+        "context": [
+          {
+            "name": "connectorKey",
+            "type": "string",
+            "value": "uipath-uipath-dataservice"
+          },
+          {
+            "name": "operation",
+            "value": "CREATED_V3",
+            "type": "string"
+          },
+          {
+            "name": "objectName",
+            "value": "EntityTriggers_V3",
+            "type": "string"
+          },
+          {
+            "name": "method",
+            "type": "string"
+          },
+          {
+            "name": "connection",
+            "type": "string",
+            "value": "<bindings.uipath-uipath-dataservice connection>"
+          },
+          {
+            "name": "folderKey",
+            "type": "string",
+            "value": "<bindings.FolderKey>"
+          },
+          {
+            "name": "activityConfigurationVersion",
+            "type": "string",
+            "value": "v1"
+          },
+          {
+            "name": "metadata",
+            "body": {
+              "telemetryData": {
+                "connectorKey": "uipath-uipath-dataservice",
+                "connectorName": "Record Created"
+              },
+              "inputMetadata": {},
+              "errorState": {
+                "hasError": true
+              }
+            },
+            "type": "json"
+          }
+        ]
+      },
+      "outputs": {
+        "output": {
+          "type": "object",
+          "description": "The return value of the connector trigger.",
           "source": {
-            "type": "jsExpression",
-            "expression": "$vars.prId",
+            "type": "literal",
+            "expression": "=result.response",
             "fieldType": "string"
           },
-          "var": "prId"
+          "var": "output"
         }
+      },
+      "inputs": {
+        "entryPointId": "02ee06a0-0102-4000-8000-03ecda730102",
+        "detail": {
+          "connector": "uipath-uipath-dataservice",
+          "connectionId": "01745482-f6ba-4353-addc-38659df5845c",
+          "connectionResourceId": "01745482-f6ba-4353-addc-38659df5845c",
+          "connectionFolderKey": "179dba0b-3aef-485e-ae12-24aa686ed19f",
+          "eventParameters": {},
+          "queryParameters": {
+            "entityScope": "tenant",
+            "tenantEntityName": "PurchaseRequisition"
+          },
+          "objectName": "EntityTriggers_V3",
+          "eventType": "CREATED_V3",
+          "eventMode": "webhooks",
+          "filterExpression": "",
+          "configuration": "=jsonString:{\"essentialConfiguration\":{\"instanceParameters\":{\"connectorKey\":\"uipath-uipath-dataservice\",\"objectName\":\"EntityTriggers_V3\",\"activityType\":\"CuratedTrigger\",\"version\":\"1.0.0\",\"eventOperation\":\"CREATED_V3\",\"eventMode\":\"webhooks\",\"supportsStreaming\":false},\"objectName\":\"EntityTriggers_V3\",\"packageVersion\":\"1.0.0\",\"connectorVersion\":null,\"executionType\":null,\"httpMethod\":null,\"path\":null,\"filter\":null}}",
+          "uiPathActivityTypeId": "9d70091c-c6bf-35a9-94b4-1f5d438c22b0",
+          "bindings": [
+            {
+              "resource": "Property",
+              "key": "CREATED_V3",
+              "value": {
+                "entityScope": {
+                  "defaultValue": "tenant",
+                  "isExpression": false
+                },
+                "tenantEntityName": {
+                  "defaultValue": "PurchaseRequisition",
+                  "isExpression": false
+                }
+              },
+              "activityDisplayName": "connector-activity",
+              "metadata": {
+                "ActivityName": "connector-activity",
+                "BindingsVersion": "2.2",
+                "ObjectName": "EntityTriggers_V3",
+                "ParentResourceKey": "EventTrigger.01745482-f6ba-4353-addc-38659df5845c",
+                "TriggerCreateParameters": "entityScope,tenantEntityName",
+                "DebugQueryParameters": "entityScope,tenantEntityName"
+              }
+            }
+          ],
+          "errorState": {
+            "issues": []
+          }
+        }
+      }
+    },
+    {
+      "id": "createdPr",
+      "type": "core.datafabric.read",
+      "typeVersion": "1.0",
+      "display": {
+        "label": "createdPr",
+        "icon": "layers-arrow-up-right"
+      },
+      "outputs": {
+        "output": {
+          "type": "jsonSchema",
+          "description": "Entity record read by this node",
+          "source": {
+            "type": "literal",
+            "expression": "=response",
+            "fieldType": "string"
+          },
+          "var": "output"
+        }
+      },
+      "inputs": {
+        "entityConfig": {
+          "entityName": "PurchaseRequisition",
+          "_filters": [
+            {
+              "field": "Id",
+              "operator": "=",
+              "value": "=js:$vars.onPrCreated.output.Id"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "fromEvent",
+      "type": "core.action.script",
+      "typeVersion": "1.0.0",
+      "display": {
+        "label": "fromEvent",
+        "icon": "code"
+      },
+      "model": {
+        "type": "bpmn:ScriptTask"
+      },
+      "outputs": {
+        "output": {
+          "type": "string",
+          "description": "The return value of the script",
+          "source": {
+            "type": "literal",
+            "expression": "=result.response",
+            "fieldType": "string"
+          },
+          "var": "output"
+        },
+        "error": {
+          "type": "object",
+          "description": "Error information if the script fails",
+          "source": {
+            "type": "literal",
+            "expression": "=result.Error",
+            "fieldType": "string"
+          },
+          "var": "error",
+          "schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "detail",
+              "category",
+              "status"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Error code as a string"
+              },
+              "message": {
+                "type": "string",
+                "description": "High-level error message"
+              },
+              "detail": {
+                "type": "string",
+                "description": "Detailed error description"
+              },
+              "category": {
+                "type": "string",
+                "description": "Error category"
+              },
+              "status": {
+                "type": "integer",
+                "description": "HTTP status code"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "inputs": {
+        "script": "var r = $vars.createdPr.output || {}; return String(r.prId || r.PrId || '');"
       }
     }
   ],
@@ -3389,392 +4276,469 @@
       "id": "edge_0",
       "sourceNodeId": "start",
       "sourcePort": "output",
-      "targetNodeId": "existingCase",
+      "targetNodeId": "resolveRun",
       "targetPort": "input"
     },
     {
       "id": "edge_1",
+      "sourceNodeId": "resolveRun",
+      "sourcePort": "success",
+      "targetNodeId": "existingCase",
+      "targetPort": "input"
+    },
+    {
+      "id": "edge_2",
       "sourceNodeId": "existingCase",
       "sourcePort": "output",
       "targetNodeId": "alreadyChecked",
       "targetPort": "input"
     },
     {
-      "id": "edge_2",
+      "id": "edge_3",
       "sourceNodeId": "alreadyChecked",
       "sourcePort": "true",
       "targetNodeId": "end",
       "targetPort": "input"
     },
     {
-      "id": "edge_3",
+      "id": "edge_4",
       "sourceNodeId": "alreadyChecked",
       "sourcePort": "false",
       "targetNodeId": "loadPrs",
       "targetPort": "input"
     },
     {
-      "id": "edge_4",
+      "id": "edge_5",
       "sourceNodeId": "loadPrs",
       "sourcePort": "output",
       "targetNodeId": "loadEmployees",
       "targetPort": "input"
     },
     {
-      "id": "edge_5",
+      "id": "edge_6",
       "sourceNodeId": "loadEmployees",
       "sourcePort": "output",
       "targetNodeId": "loadVendors",
       "targetPort": "input"
     },
     {
-      "id": "edge_6",
+      "id": "edge_7",
       "sourceNodeId": "loadVendors",
       "sourcePort": "output",
       "targetNodeId": "loadMatrix",
       "targetPort": "input"
     },
     {
-      "id": "edge_7",
+      "id": "edge_8",
       "sourceNodeId": "loadMatrix",
       "sourcePort": "output",
       "targetNodeId": "loadBlankets",
       "targetPort": "input"
     },
     {
-      "id": "edge_8",
+      "id": "edge_9",
       "sourceNodeId": "loadBlankets",
       "sourcePort": "output",
       "targetNodeId": "rules",
       "targetPort": "input"
     },
     {
-      "id": "edge_9",
+      "id": "edge_10",
       "sourceNodeId": "rules",
       "sourcePort": "error",
       "targetNodeId": "end2",
       "targetPort": "input"
     },
     {
-      "id": "edge_10",
+      "id": "edge_11",
       "sourceNodeId": "rules",
       "sourcePort": "success",
       "targetNodeId": "route",
       "targetPort": "input"
     },
     {
-      "id": "edge_11",
+      "id": "edge_12",
       "sourceNodeId": "route",
       "sourcePort": "case-case_1",
       "targetNodeId": "end3",
       "targetPort": "input"
     },
     {
-      "id": "edge_12",
-      "sourceNodeId": "route",
-      "sourcePort": "case-case_2",
-      "targetNodeId": "ruleRelease",
-      "targetPort": "input"
-    },
-    {
       "id": "edge_13",
       "sourceNodeId": "route",
-      "sourcePort": "case-case_3",
-      "targetNodeId": "holdUnverified",
+      "sourcePort": "case-case_2",
+      "targetNodeId": "end4",
       "targetPort": "input"
     },
     {
       "id": "edge_14",
+      "sourceNodeId": "route",
+      "sourcePort": "case-case_3",
+      "targetNodeId": "ruleRelease",
+      "targetPort": "input"
+    },
+    {
+      "id": "edge_15",
+      "sourceNodeId": "route",
+      "sourcePort": "case-case_4",
+      "targetNodeId": "holdUnverified",
+      "targetPort": "input"
+    },
+    {
+      "id": "edge_16",
       "sourceNodeId": "route",
       "sourcePort": "default",
       "targetNodeId": "judge",
       "targetPort": "input"
     },
     {
-      "id": "edge_15",
+      "id": "edge_17",
       "sourceNodeId": "judge",
       "sourcePort": "success",
       "targetNodeId": "check1",
       "targetPort": "input"
     },
     {
-      "id": "edge_16",
+      "id": "edge_18",
       "sourceNodeId": "check1",
       "sourcePort": "success",
       "targetNodeId": "retryNeeded",
       "targetPort": "input"
     },
     {
-      "id": "edge_17",
+      "id": "edge_19",
       "sourceNodeId": "retryNeeded",
       "sourcePort": "true",
       "targetNodeId": "judgeRetry",
       "targetPort": "input"
     },
     {
-      "id": "edge_18",
+      "id": "edge_20",
       "sourceNodeId": "judgeRetry",
       "sourcePort": "success",
       "targetNodeId": "check2",
       "targetPort": "input"
     },
     {
-      "id": "edge_19",
+      "id": "edge_21",
       "sourceNodeId": "check2",
       "sourcePort": "success",
       "targetNodeId": "gateway",
       "targetPort": "input"
     },
     {
-      "id": "edge_20",
+      "id": "edge_22",
       "sourceNodeId": "retryNeeded",
       "sourcePort": "false",
       "targetNodeId": "gateway",
       "targetPort": "input"
     },
     {
-      "id": "edge_21",
+      "id": "edge_23",
       "sourceNodeId": "gateway",
       "sourcePort": "success",
       "targetNodeId": "decision",
       "targetPort": "input"
     },
     {
-      "id": "edge_22",
+      "id": "edge_24",
       "sourceNodeId": "decision",
       "sourcePort": "case-case_1",
       "targetNodeId": "agentRelease",
       "targetPort": "input"
     },
     {
-      "id": "edge_23",
+      "id": "edge_25",
       "sourceNodeId": "decision",
       "sourcePort": "case-case_2",
       "targetNodeId": "askCard",
       "targetPort": "input"
     },
     {
-      "id": "edge_24",
+      "id": "edge_26",
       "sourceNodeId": "askCard",
       "sourcePort": "success",
       "targetNodeId": "requesterTask",
       "targetPort": "input"
     },
     {
-      "id": "edge_25",
+      "id": "edge_27",
       "sourceNodeId": "requesterTask",
       "sourcePort": "outcome-consolidate",
       "targetNodeId": "requesterConsolidates",
       "targetPort": "input"
     },
     {
-      "id": "edge_26",
+      "id": "edge_28",
       "sourceNodeId": "requesterTask",
       "sourcePort": "outcome-explain",
       "targetNodeId": "keepJustification",
       "targetPort": "input"
     },
     {
-      "id": "edge_27",
+      "id": "edge_29",
       "sourceNodeId": "keepJustification",
       "sourcePort": "success",
       "targetNodeId": "rejudge",
       "targetPort": "input"
     },
     {
-      "id": "edge_28",
+      "id": "edge_30",
       "sourceNodeId": "rejudge",
       "sourcePort": "success",
       "targetNodeId": "check3",
       "targetPort": "input"
     },
     {
-      "id": "edge_29",
+      "id": "edge_31",
       "sourceNodeId": "check3",
       "sourcePort": "success",
       "targetNodeId": "gateway2",
       "targetPort": "input"
     },
     {
-      "id": "edge_30",
+      "id": "edge_32",
       "sourceNodeId": "decision",
       "sourcePort": "default",
       "targetNodeId": "markReview",
       "targetPort": "input"
     },
     {
-      "id": "edge_31",
+      "id": "edge_33",
       "sourceNodeId": "ruleRelease",
       "sourcePort": "success",
       "targetNodeId": "reviewNeeded",
       "targetPort": "input"
     },
     {
-      "id": "edge_32",
+      "id": "edge_34",
       "sourceNodeId": "holdUnverified",
       "sourcePort": "success",
       "targetNodeId": "reviewNeeded",
       "targetPort": "input"
     },
     {
-      "id": "edge_33",
+      "id": "edge_35",
       "sourceNodeId": "agentRelease",
       "sourcePort": "success",
       "targetNodeId": "reviewNeeded",
       "targetPort": "input"
     },
     {
-      "id": "edge_34",
+      "id": "edge_36",
       "sourceNodeId": "requesterConsolidates",
       "sourcePort": "success",
       "targetNodeId": "reviewNeeded",
       "targetPort": "input"
     },
     {
-      "id": "edge_35",
+      "id": "edge_37",
       "sourceNodeId": "gateway2",
       "sourcePort": "success",
       "targetNodeId": "reviewNeeded",
       "targetPort": "input"
     },
     {
-      "id": "edge_36",
+      "id": "edge_38",
       "sourceNodeId": "markReview",
       "sourcePort": "success",
       "targetNodeId": "reviewNeeded",
       "targetPort": "input"
     },
     {
-      "id": "edge_37",
+      "id": "edge_39",
       "sourceNodeId": "reviewNeeded",
       "sourcePort": "true",
       "targetNodeId": "reviewCard",
       "targetPort": "input"
     },
     {
-      "id": "edge_38",
+      "id": "edge_40",
       "sourceNodeId": "reviewCard",
       "sourcePort": "success",
       "targetNodeId": "approverReview",
       "targetPort": "input"
     },
     {
-      "id": "edge_39",
+      "id": "edge_41",
       "sourceNodeId": "approverReview",
       "sourcePort": "outcome-consolidate",
       "targetNodeId": "decConsolidate",
       "targetPort": "input"
     },
     {
-      "id": "edge_40",
+      "id": "edge_42",
       "sourceNodeId": "approverReview",
       "sourcePort": "outcome-approve-separately",
       "targetNodeId": "decApproveSeparate",
       "targetPort": "input"
     },
     {
-      "id": "edge_41",
+      "id": "edge_43",
       "sourceNodeId": "approverReview",
       "sourcePort": "outcome-reject",
       "targetNodeId": "decReject",
       "targetPort": "input"
     },
     {
-      "id": "edge_42",
+      "id": "edge_44",
       "sourceNodeId": "approverReview",
       "sourcePort": "outcome-false-positive",
       "targetNodeId": "decFalsePositive",
       "targetPort": "input"
     },
     {
-      "id": "edge_43",
+      "id": "edge_45",
       "sourceNodeId": "decConsolidate",
       "sourcePort": "success",
       "targetNodeId": "finalize",
       "targetPort": "input"
     },
     {
-      "id": "edge_44",
+      "id": "edge_46",
       "sourceNodeId": "decApproveSeparate",
       "sourcePort": "success",
       "targetNodeId": "finalize",
       "targetPort": "input"
     },
     {
-      "id": "edge_45",
+      "id": "edge_47",
       "sourceNodeId": "decReject",
       "sourcePort": "success",
       "targetNodeId": "finalize",
       "targetPort": "input"
     },
     {
-      "id": "edge_46",
+      "id": "edge_48",
       "sourceNodeId": "decFalsePositive",
       "sourcePort": "success",
       "targetNodeId": "finalize",
       "targetPort": "input"
     },
     {
-      "id": "edge_47",
+      "id": "edge_49",
       "sourceNodeId": "reviewNeeded",
       "sourcePort": "false",
       "targetNodeId": "finalize",
       "targetPort": "input"
     },
     {
-      "id": "edge_48",
+      "id": "edge_50",
       "sourceNodeId": "finalize",
       "sourcePort": "success",
       "targetNodeId": "applyStatus",
       "targetPort": "input"
     },
     {
-      "id": "edge_49",
+      "id": "edge_51",
       "sourceNodeId": "applyStatus",
       "sourcePort": "start",
       "targetNodeId": "setStatus",
       "targetPort": "input"
     },
     {
-      "id": "edge_50",
+      "id": "edge_52",
       "sourceNodeId": "setStatus",
       "sourcePort": "output",
       "targetNodeId": "applyStatus",
       "targetPort": "continue"
     },
     {
-      "id": "edge_51",
+      "id": "edge_53",
       "sourceNodeId": "applyStatus",
       "sourcePort": "success",
       "targetNodeId": "writeCase",
       "targetPort": "input"
     },
     {
-      "id": "edge_52",
+      "id": "edge_54",
       "sourceNodeId": "writeCase",
       "sourcePort": "output",
-      "targetNodeId": "end4",
+      "targetNodeId": "notifyNeeded",
       "targetPort": "input"
     },
     {
-      "id": "edge_53",
+      "id": "edge_55",
+      "sourceNodeId": "notifyNeeded",
+      "sourcePort": "true",
+      "targetNodeId": "notifyText",
+      "targetPort": "input"
+    },
+    {
+      "id": "edge_56",
+      "sourceNodeId": "notifyText",
+      "sourcePort": "success",
+      "targetNodeId": "notify",
+      "targetPort": "input"
+    },
+    {
+      "id": "edge_57",
+      "sourceNodeId": "notify",
+      "sourcePort": "output",
+      "targetNodeId": "notifyDone",
+      "targetPort": "input"
+    },
+    {
+      "id": "edge_58",
+      "sourceNodeId": "notifyDone",
+      "sourcePort": "success",
+      "targetNodeId": "end5",
+      "targetPort": "input"
+    },
+    {
+      "id": "edge_59",
+      "sourceNodeId": "notifyNeeded",
+      "sourcePort": "false",
+      "targetNodeId": "end5",
+      "targetPort": "input"
+    },
+    {
+      "id": "edge_60",
+      "sourceNodeId": "onPrCreated",
+      "sourcePort": "output",
+      "targetNodeId": "createdPr",
+      "targetPort": "input"
+    },
+    {
+      "id": "edge_61",
+      "sourceNodeId": "createdPr",
+      "sourcePort": "output",
+      "targetNodeId": "fromEvent",
+      "targetPort": "input"
+    },
+    {
+      "id": "edge_62",
+      "sourceNodeId": "fromEvent",
+      "sourcePort": "success",
+      "targetNodeId": "resolveRun",
+      "targetPort": "input"
+    },
+    {
+      "id": "edge_63",
       "sourceNodeId": "judge",
       "sourcePort": "error",
       "targetNodeId": "check1",
       "targetPort": "input"
     },
     {
-      "id": "edge_54",
+      "id": "edge_64",
       "sourceNodeId": "judgeRetry",
       "sourcePort": "error",
       "targetNodeId": "check2",
       "targetPort": "input"
     },
     {
-      "id": "edge_55",
+      "id": "edge_65",
       "sourceNodeId": "rejudge",
       "sourcePort": "error",
       "targetNodeId": "check3",
+      "targetPort": "input"
+    },
+    {
+      "id": "edge_66",
+      "sourceNodeId": "notify",
+      "sourcePort": "error",
+      "targetNodeId": "notifyDone",
       "targetPort": "input"
     }
   ],
@@ -3836,6 +4800,154 @@
             }
           ]
         }
+      }
+    },
+    {
+      "nodeType": "core.action.script",
+      "version": "1.0.0",
+      "category": "data-operations",
+      "tags": [
+        "code",
+        "javascript",
+        "python"
+      ],
+      "sortOrder": 35,
+      "supportsErrorHandling": true,
+      "display": {
+        "label": "Script",
+        "icon": "code",
+        "iconBackground": "linear-gradient(225deg, #FAFAFB 0%, #ECEDEF 100%)",
+        "iconBackgroundDark": "linear-gradient(225deg, #526069 0%, rgba(50, 60, 66, 0.6) 100%)"
+      },
+      "handleConfiguration": [
+        {
+          "position": "left",
+          "handles": [
+            {
+              "id": "input",
+              "type": "target",
+              "handleType": "input"
+            }
+          ]
+        },
+        {
+          "position": "right",
+          "handles": [
+            {
+              "id": "success",
+              "type": "source",
+              "handleType": "output"
+            },
+            {
+              "id": "error",
+              "label": "Error",
+              "type": "source",
+              "handleType": "output",
+              "visible": "{inputs.errorHandlingEnabled}",
+              "constraints": {
+                "maxConnections": 1
+              }
+            }
+          ]
+        }
+      ],
+      "debug": {
+        "runtime": "bpmnEngine"
+      },
+      "model": {
+        "type": "bpmn:ScriptTask"
+      },
+      "inputDefinition": {
+        "type": "object",
+        "properties": {
+          "script": {
+            "type": "string",
+            "minLength": 1,
+            "errorMessage": "A script function is required",
+            "validationSeverity": "warning"
+          }
+        },
+        "required": [
+          "script"
+        ]
+      },
+      "inputDefaults": {
+        "script": ""
+      },
+      "outputDefinition": {
+        "output": {
+          "type": "object",
+          "description": "The return value of the script",
+          "source": "=result.response",
+          "var": "output"
+        },
+        "error": {
+          "type": "object",
+          "description": "Error information if the script fails",
+          "source": "=result.Error",
+          "var": "error",
+          "schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "detail",
+              "category",
+              "status"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Error code as a string"
+              },
+              "message": {
+                "type": "string",
+                "description": "High-level error message"
+              },
+              "detail": {
+                "type": "string",
+                "description": "Detailed error description"
+              },
+              "category": {
+                "type": "string",
+                "description": "Error category"
+              },
+              "status": {
+                "type": "integer",
+                "description": "HTTP status code"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "form": {
+        "id": "script-properties",
+        "title": "Script configuration",
+        "sections": [
+          {
+            "id": "script",
+            "title": "Script",
+            "collapsible": true,
+            "defaultExpanded": true,
+            "fields": [
+              {
+                "name": "inputs.script",
+                "type": "custom",
+                "component": "script-editor",
+                "componentProps": {
+                  "language": "javascript",
+                  "returnType": "any",
+                  "minHeight": 200,
+                  "placeholder": " // Return an object with your result\nreturn {\n  message: \"Web request response\",\n  data: $vars.httpRequest1.output\n                  };"
+                },
+                "label": "Code",
+                "description": "JavaScript expression that returns a result object"
+              }
+            ]
+          }
+        ]
       }
     },
     {
@@ -4103,154 +5215,6 @@
       ],
       "model": {
         "type": "bpmn:EndEvent"
-      }
-    },
-    {
-      "nodeType": "core.action.script",
-      "version": "1.0.0",
-      "category": "data-operations",
-      "tags": [
-        "code",
-        "javascript",
-        "python"
-      ],
-      "sortOrder": 35,
-      "supportsErrorHandling": true,
-      "display": {
-        "label": "Script",
-        "icon": "code",
-        "iconBackground": "linear-gradient(225deg, #FAFAFB 0%, #ECEDEF 100%)",
-        "iconBackgroundDark": "linear-gradient(225deg, #526069 0%, rgba(50, 60, 66, 0.6) 100%)"
-      },
-      "handleConfiguration": [
-        {
-          "position": "left",
-          "handles": [
-            {
-              "id": "input",
-              "type": "target",
-              "handleType": "input"
-            }
-          ]
-        },
-        {
-          "position": "right",
-          "handles": [
-            {
-              "id": "success",
-              "type": "source",
-              "handleType": "output"
-            },
-            {
-              "id": "error",
-              "label": "Error",
-              "type": "source",
-              "handleType": "output",
-              "visible": "{inputs.errorHandlingEnabled}",
-              "constraints": {
-                "maxConnections": 1
-              }
-            }
-          ]
-        }
-      ],
-      "debug": {
-        "runtime": "bpmnEngine"
-      },
-      "model": {
-        "type": "bpmn:ScriptTask"
-      },
-      "inputDefinition": {
-        "type": "object",
-        "properties": {
-          "script": {
-            "type": "string",
-            "minLength": 1,
-            "errorMessage": "A script function is required",
-            "validationSeverity": "warning"
-          }
-        },
-        "required": [
-          "script"
-        ]
-      },
-      "inputDefaults": {
-        "script": ""
-      },
-      "outputDefinition": {
-        "output": {
-          "type": "object",
-          "description": "The return value of the script",
-          "source": "=result.response",
-          "var": "output"
-        },
-        "error": {
-          "type": "object",
-          "description": "Error information if the script fails",
-          "source": "=result.Error",
-          "var": "error",
-          "schema": {
-            "$schema": "http://json-schema.org/draft-07/schema#",
-            "type": "object",
-            "required": [
-              "code",
-              "message",
-              "detail",
-              "category",
-              "status"
-            ],
-            "properties": {
-              "code": {
-                "type": "string",
-                "description": "Error code as a string"
-              },
-              "message": {
-                "type": "string",
-                "description": "High-level error message"
-              },
-              "detail": {
-                "type": "string",
-                "description": "Detailed error description"
-              },
-              "category": {
-                "type": "string",
-                "description": "Error category"
-              },
-              "status": {
-                "type": "integer",
-                "description": "HTTP status code"
-              }
-            },
-            "additionalProperties": false
-          }
-        }
-      },
-      "form": {
-        "id": "script-properties",
-        "title": "Script configuration",
-        "sections": [
-          {
-            "id": "script",
-            "title": "Script",
-            "collapsible": true,
-            "defaultExpanded": true,
-            "fields": [
-              {
-                "name": "inputs.script",
-                "type": "custom",
-                "component": "script-editor",
-                "componentProps": {
-                  "language": "javascript",
-                  "returnType": "any",
-                  "minHeight": 200,
-                  "placeholder": " // Return an object with your result\nreturn {\n  message: \"Web request response\",\n  data: $vars.httpRequest1.output\n                  };"
-                },
-                "label": "Code",
-                "description": "JavaScript expression that returns a result object"
-              }
-            ]
-          }
-        ]
       }
     },
     {
@@ -5468,6 +6432,632 @@
           }
         ]
       }
+    },
+    {
+      "nodeType": "uipath.connector.uipath-google-gmail.send-email",
+      "version": "1.0.0",
+      "category": "connector.196556",
+      "tags": [
+        "connector",
+        "activity",
+        "API.File.Upload.Optional"
+      ],
+      "sortOrder": 520,
+      "supportsErrorHandling": true,
+      "description": "Sends an email message",
+      "display": {
+        "label": "Send Email",
+        "description": "Sends an email message",
+        "icon": "https://alpha.uipath.com/311c6049-4966-4ef2-a6f3-8ceccaf38d54/studio_/typecache/icons/70091673b4573a26ec5090fa697c3bf61a0bedf4c77a302986b69d53bea30191.svg",
+        "sourceDisplayName": "Gmail"
+      },
+      "handleConfiguration": [
+        {
+          "position": "left",
+          "handles": [
+            {
+              "id": "input",
+              "type": "target",
+              "handleType": "input",
+              "label": ""
+            }
+          ]
+        },
+        {
+          "position": "right",
+          "handles": [
+            {
+              "id": "output",
+              "type": "source",
+              "handleType": "output",
+              "label": ""
+            },
+            {
+              "id": "error",
+              "label": "Error",
+              "type": "source",
+              "handleType": "output",
+              "visible": "{inputs.errorHandlingEnabled}",
+              "constraints": {
+                "maxConnections": 1
+              }
+            }
+          ]
+        }
+      ],
+      "model": {
+        "type": "bpmn:SendTask",
+        "serviceType": "Intsvc.ActivityExecution",
+        "bindings": {
+          "resource": "connection",
+          "resourceKey": "",
+          "values": [
+            {
+              "name": "uipath-google-gmail connection",
+              "propertyAttribute": "ConnectionId"
+            },
+            {
+              "name": "FolderKey",
+              "propertyAttribute": "FolderKey"
+            }
+          ]
+        },
+        "context": [
+          {
+            "name": "connectorKey",
+            "type": "string",
+            "value": "uipath-google-gmail"
+          },
+          {
+            "name": "operation",
+            "type": "string"
+          },
+          {
+            "name": "objectName",
+            "value": "SendEmail",
+            "type": "string"
+          },
+          {
+            "name": "method",
+            "type": "string",
+            "value": "POST"
+          },
+          {
+            "name": "connection",
+            "type": "string",
+            "value": "<bindings.uipath-google-gmail connection>"
+          },
+          {
+            "name": "folderKey",
+            "type": "string",
+            "value": "<bindings.FolderKey>"
+          },
+          {
+            "name": "activityConfigurationVersion",
+            "type": "string",
+            "value": "v1"
+          },
+          {
+            "name": "metadata",
+            "body": {
+              "telemetryData": {
+                "connectorKey": "uipath-google-gmail",
+                "connectorName": "Send Email"
+              },
+              "inputMetadata": {},
+              "errorState": {
+                "hasError": true
+              }
+            },
+            "type": "json"
+          }
+        ]
+      },
+      "form": {
+        "id": "connector-properties",
+        "title": "Connector configuration",
+        "sections": [
+          {
+            "id": "connector",
+            "title": "Connector",
+            "collapsible": true,
+            "defaultExpanded": true,
+            "fields": [
+              {
+                "label": "",
+                "name": "inputs.detail",
+                "type": "custom",
+                "component": "dap-config",
+                "componentProps": {
+                  "connectorDetail": {
+                    "isAppActivity": false,
+                    "packageId": "196556",
+                    "svgIconUrl": "icons/70091673b4573a26ec5090fa697c3bf61a0bedf4c77a302986b69d53bea30191.svg",
+                    "displayName": "Send Email",
+                    "assemblyQualifiedName": "UiPath.IntegrationService.Activities.Runtime.Activities.ConnectorActivity, UiPath.IntegrationService.Activities.Runtime, Version=1.37.0.0, Culture=neutral, PublicKeyToken=null",
+                    "description": "Sends an email message",
+                    "category": "",
+                    "activityColor": "#E56D5C",
+                    "configuration": "{\"connectorKey\":\"uipath-google-gmail\",\"objectName\":\"SendEmail\",\"httpMethod\":\"POST\",\"activityType\":\"Curated\",\"version\":\"1.0.0\",\"supportsStreaming\":false,\"subType\":\"standard\"}",
+                    "uiPathActivityTypeId": "f2a5320d-a0d1-3aec-af8f-5b16ad9665a0",
+                    "isExperimental": false,
+                    "helpUrlTemplate": "https://docs.uipath.com/{0}/activities/other/latest/integration-service/uipath-google-gmail-Send-Email",
+                    "isEnabled": true,
+                    "targetPlatform": "CrossPlatform",
+                    "isAdvanced": false,
+                    "isRestricted": false,
+                    "hasWpfOnlyDesigner": false,
+                    "tags": [
+                      "API.File.Upload.Optional"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "inputDefinition": {
+        "fields": [
+          {
+            "name": "BCC",
+            "type": "string",
+            "displayName": "BCC",
+            "description": "The hidden recipients of the email, separated by comma (,)",
+            "required": false
+          },
+          {
+            "name": "Body",
+            "type": "string",
+            "displayName": "Body",
+            "description": "The body of the email",
+            "required": false
+          },
+          {
+            "name": "CC",
+            "type": "string",
+            "displayName": "CC",
+            "description": "The secondary recipients of the email, separated by comma (,)",
+            "required": false
+          },
+          {
+            "name": "Importance",
+            "type": "string",
+            "displayName": "Importance",
+            "description": "The importance of the mail",
+            "enum": [
+              "normal",
+              "high",
+              "low"
+            ],
+            "required": false
+          },
+          {
+            "name": "ReplyTo",
+            "type": "string",
+            "displayName": "Reply to",
+            "description": "The email addresses to use when replying, separated by comma (,)",
+            "required": false
+          },
+          {
+            "name": "Subject",
+            "type": "string",
+            "displayName": "Subject",
+            "description": "The subject of the email",
+            "required": false
+          },
+          {
+            "name": "To",
+            "type": "string",
+            "displayName": "To",
+            "description": "The primary recipients of the email, separated by comma (,)",
+            "required": true
+          }
+        ]
+      },
+      "inputDefaults": {},
+      "outputDefinition": {
+        "output": {
+          "type": "object",
+          "description": "The return value of the connector.",
+          "source": "=result.response",
+          "var": "output"
+        },
+        "error": {
+          "type": "object",
+          "description": "Error information if the node fails",
+          "source": "=Error",
+          "var": "error",
+          "schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "detail",
+              "category",
+              "status"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Error code as a string"
+              },
+              "message": {
+                "type": "string",
+                "description": "High-level error message"
+              },
+              "detail": {
+                "type": "string",
+                "description": "Detailed error description"
+              },
+              "category": {
+                "type": "string",
+                "description": "Error category"
+              },
+              "status": {
+                "type": "integer",
+                "description": "HTTP status code"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "debug": {
+        "runtime": "bpmnEngine"
+      }
+    },
+    {
+      "nodeType": "uipath.connector.trigger.uipath-uipath-dataservice.record-created",
+      "version": "1.0.0",
+      "category": "trigger.68054",
+      "tags": [
+        "connector",
+        "trigger",
+        "Trigger.Integrated"
+      ],
+      "sortOrder": 580,
+      "description": "Triggers when you add a new entity record",
+      "display": {
+        "label": "Record Created",
+        "description": "Triggers when you add a new entity record",
+        "icon": "https://cloud.uipath.com/bdee616a-d8c8-43cd-a9cf-13f5326ccee4/studio_/typecache/icons/98381fa079bbcf73264f551006d6ef7580fb53992f3d9f94361eb5d9e06040cb.svg",
+        "sourceDisplayName": "UiPath Data Fabric",
+        "shape": "circle"
+      },
+      "handleConfiguration": [
+        {
+          "position": "right",
+          "handles": [
+            {
+              "id": "output",
+              "type": "source",
+              "handleType": "output",
+              "showButton": true,
+              "constraints": {
+                "forbiddenTargetCategories": [
+                  "trigger"
+                ]
+              }
+            }
+          ],
+          "visible": true
+        }
+      ],
+      "model": {
+        "type": "bpmn:StartEvent",
+        "entryPointId": true,
+        "serviceType": "Intsvc.EventTrigger",
+        "eventDefinition": "bpmn:MessageEventDefinition",
+        "bindings": {
+          "resource": "connection",
+          "resourceKey": "",
+          "values": [
+            {
+              "name": "uipath-uipath-dataservice connection",
+              "propertyAttribute": "ConnectionId"
+            },
+            {
+              "name": "FolderKey",
+              "propertyAttribute": "FolderKey"
+            }
+          ]
+        },
+        "context": [
+          {
+            "name": "connectorKey",
+            "type": "string",
+            "value": "uipath-uipath-dataservice"
+          },
+          {
+            "name": "operation",
+            "value": "CREATED_V3",
+            "type": "string"
+          },
+          {
+            "name": "objectName",
+            "value": "EntityTriggers_V3",
+            "type": "string"
+          },
+          {
+            "name": "method",
+            "type": "string"
+          },
+          {
+            "name": "connection",
+            "type": "string",
+            "value": "<bindings.uipath-uipath-dataservice connection>"
+          },
+          {
+            "name": "folderKey",
+            "type": "string",
+            "value": "<bindings.FolderKey>"
+          },
+          {
+            "name": "activityConfigurationVersion",
+            "type": "string",
+            "value": "v1"
+          },
+          {
+            "name": "metadata",
+            "body": {
+              "telemetryData": {
+                "connectorKey": "uipath-uipath-dataservice",
+                "connectorName": "Record Created"
+              },
+              "inputMetadata": {},
+              "errorState": {
+                "hasError": true
+              }
+            },
+            "type": "json"
+          }
+        ]
+      },
+      "form": {
+        "id": "connector-properties",
+        "title": "Connector configuration",
+        "sections": [
+          {
+            "id": "connector",
+            "title": "Connector",
+            "collapsible": true,
+            "defaultExpanded": true,
+            "fields": [
+              {
+                "label": "",
+                "name": "inputs.detail",
+                "type": "custom",
+                "component": "dap-config",
+                "componentProps": {
+                  "connectorDetail": {
+                    "type": "Integrated",
+                    "packageId": "68054",
+                    "svgIconUrl": "icons/98381fa079bbcf73264f551006d6ef7580fb53992f3d9f94361eb5d9e06040cb.svg",
+                    "displayName": "Record Created",
+                    "assemblyQualifiedName": "UiPath.IntegrationService.Activities.Runtime.Activities.ConnectorTriggerActivity, UiPath.IntegrationService.Activities.Runtime, Version=1.36.0.0, Culture=neutral, PublicKeyToken=null",
+                    "description": "Triggers when you add a new entity record",
+                    "category": "UiPath Data Fabric.Triggers",
+                    "activityColor": "#E56D5C",
+                    "configuration": "{\"connectorKey\":\"uipath-uipath-dataservice\",\"objectName\":\"EntityTriggers_V3\",\"activityType\":\"CuratedTrigger\",\"version\":\"1.0.0\",\"eventOperation\":\"CREATED_V3\",\"eventMode\":\"webhooks\",\"supportsStreaming\":false}",
+                    "uiPathActivityTypeId": "9d70091c-c6bf-35a9-94b4-1f5d438c22b0",
+                    "isExperimental": false,
+                    "helpUrlTemplate": "https://docs.uipath.com/{0}/activities/other/latest/integration-service/uipath-uipath-dataservice-Record-Created",
+                    "isEnabled": true,
+                    "targetPlatform": "CrossPlatform",
+                    "isAdvanced": false,
+                    "isRestricted": false,
+                    "hasWpfOnlyDesigner": false,
+                    "tags": [
+                      "Trigger.Integrated"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "inputDefinition": {},
+      "outputDefinition": {
+        "output": {
+          "type": "object",
+          "description": "The return value of the connector trigger.",
+          "source": "=result.response",
+          "var": "output"
+        }
+      },
+      "toolbarExtensions": {
+        "design": {
+          "actions": [
+            {
+              "id": "change-trigger-type",
+              "icon": "square-mouse-pointer",
+              "label": "Change trigger type"
+            }
+          ]
+        }
+      },
+      "eventMode": "webhooks",
+      "byoaConnection": false,
+      "elementInstanceId": 788118,
+      "eventParameters": {
+        "fields": [
+          {
+            "name": "entityScope",
+            "bucket": "query",
+            "displayName": "Entity Scope",
+            "description": "Select the scope for entity discovery",
+            "required": true,
+            "sortOrder": 1,
+            "reference": {
+              "lookupNames": [
+                "displayName"
+              ],
+              "path": "/v3/entity-scope-options",
+              "objectName": "system",
+              "lookupValue": "value"
+            },
+            "type": "string",
+            "dataType": "string"
+          },
+          {
+            "name": "tenantEntityName",
+            "bucket": "query",
+            "displayName": "Entity",
+            "description": "Select the tenant entity to monitor for new records",
+            "required": false,
+            "sortOrder": 2,
+            "reference": {
+              "lookupNames": [
+                "displayName"
+              ],
+              "path": "/standard-objects-pure-ldo",
+              "objectName": "system",
+              "lookupValue": "name"
+            },
+            "type": "string",
+            "dataType": "string"
+          },
+          {
+            "name": "folderEntityName",
+            "bucket": "query",
+            "displayName": "Entity",
+            "description": "Select the folder entity to monitor for new records",
+            "required": false,
+            "sortOrder": 3,
+            "reference": {
+              "lookupNames": [
+                "displayName"
+              ],
+              "path": "/standard-objects/folder-entities?folderKey={folderEntityName_folderKey}",
+              "objectName": "system",
+              "lookupValue": "name"
+            },
+            "type": "string",
+            "dataType": "string"
+          }
+        ]
+      },
+      "filterFields": {
+        "fields": [
+          {
+            "name": "Id",
+            "displayName": "ID",
+            "type": "string",
+            "dataType": "string"
+          }
+        ]
+      },
+      "isWebhookUrlVisible": false
+    },
+    {
+      "nodeType": "core.datafabric.read",
+      "version": "1.0",
+      "category": "data",
+      "description": "Read one entity record from Data Fabric",
+      "tags": [
+        "datafabric",
+        "entity",
+        "data",
+        "read",
+        "query"
+      ],
+      "sortOrder": 35,
+      "display": {
+        "label": "Read entity",
+        "canvasLabel": "Read Entity",
+        "icon": "layers-arrow-up-right"
+      },
+      "handleConfiguration": [
+        {
+          "position": "left",
+          "handles": [
+            {
+              "id": "input",
+              "type": "target",
+              "handleType": "input"
+            }
+          ]
+        },
+        {
+          "position": "right",
+          "handles": [
+            {
+              "id": "output",
+              "type": "source",
+              "handleType": "output"
+            }
+          ]
+        }
+      ],
+      "model": {
+        "type": "bpmn:Task",
+        "debug": {
+          "runtime": "bpmnEngine"
+        }
+      },
+      "runtimeConstraints": {
+        "exclude": [
+          "api-function"
+        ]
+      },
+      "inputDefinition": {
+        "type": "object",
+        "properties": {
+          "entityConfig": {
+            "type": "object",
+            "properties": {
+              "entityName": {
+                "type": "string",
+                "minLength": 1,
+                "errorMessage": "An entity must be selected"
+              }
+            },
+            "required": [
+              "entityName"
+            ],
+            "errorMessage": {
+              "required": "An entity must be selected"
+            }
+          }
+        },
+        "required": [
+          "entityConfig"
+        ]
+      },
+      "inputDefaults": {
+        "entityConfig": {}
+      },
+      "outputDefinition": {
+        "output": {
+          "type": "jsonSchema",
+          "description": "Entity record read by this node",
+          "source": "=response",
+          "var": "output"
+        }
+      },
+      "form": {
+        "id": "read-entity-properties",
+        "title": "Read entity configuration",
+        "sections": [
+          {
+            "id": "entity-config",
+            "title": "Entity configuration",
+            "collapsible": true,
+            "defaultExpanded": true,
+            "fields": [
+              {
+                "name": "inputs.entityConfig",
+                "type": "custom",
+                "component": "entity-config",
+                "label": ""
+              }
+            ]
+          }
+        ]
+      }
     }
   ],
   "variables": {
@@ -5477,6 +7067,13 @@
         "name": "requisitionId",
         "direction": "in",
         "type": "string",
+        "triggerNodeId": "start"
+      },
+      {
+        "id": "whatIf",
+        "name": "whatIf",
+        "direction": "in",
+        "type": "boolean",
         "triggerNodeId": "start"
       },
       {
@@ -5532,6 +7129,20 @@
         "defaultValue": ""
       },
       {
+        "id": "prId",
+        "name": "prId",
+        "direction": "inout",
+        "type": "string",
+        "defaultValue": ""
+      },
+      {
+        "id": "dryRun",
+        "name": "dryRun",
+        "direction": "inout",
+        "type": "boolean",
+        "defaultValue": false
+      },
+      {
         "id": "finalPrStatus",
         "name": "finalPrStatus",
         "direction": "inout",
@@ -5565,12 +7176,6 @@
         "direction": "inout",
         "type": "string",
         "defaultValue": ""
-      },
-      {
-        "id": "prId",
-        "name": "prId",
-        "direction": "inout",
-        "type": "string"
       }
     ],
     "nodes": [
@@ -5581,6 +7186,58 @@
         "binding": {
           "nodeId": "start",
           "outputId": "output"
+        }
+      },
+      {
+        "id": "resolveRun.output",
+        "type": "object",
+        "description": "The return value of the script",
+        "binding": {
+          "nodeId": "resolveRun",
+          "outputId": "output"
+        }
+      },
+      {
+        "id": "resolveRun.error",
+        "type": "object",
+        "description": "Error information if the script fails",
+        "schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "required": [
+            "code",
+            "message",
+            "detail",
+            "category",
+            "status"
+          ],
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Error code as a string"
+            },
+            "message": {
+              "type": "string",
+              "description": "High-level error message"
+            },
+            "detail": {
+              "type": "string",
+              "description": "Detailed error description"
+            },
+            "category": {
+              "type": "string",
+              "description": "Error category"
+            },
+            "status": {
+              "type": "integer",
+              "description": "HTTP status code"
+            }
+          },
+          "additionalProperties": false
+        },
+        "binding": {
+          "nodeId": "resolveRun",
+          "outputId": "error"
         }
       },
       {
@@ -5657,6 +7314,22 @@
         }
       },
       {
+        "id": "end.prId",
+        "type": "string",
+        "binding": {
+          "nodeId": "end",
+          "outputId": "prId"
+        }
+      },
+      {
+        "id": "end.dryRun",
+        "type": "boolean",
+        "binding": {
+          "nodeId": "end",
+          "outputId": "dryRun"
+        }
+      },
+      {
         "id": "end.finalPrStatus",
         "type": "string",
         "binding": {
@@ -5694,14 +7367,6 @@
         "binding": {
           "nodeId": "end",
           "outputId": "humanComment"
-        }
-      },
-      {
-        "id": "end.prId",
-        "type": "string",
-        "binding": {
-          "nodeId": "end",
-          "outputId": "prId"
         }
       },
       {
@@ -5866,6 +7531,22 @@
         }
       },
       {
+        "id": "end2.prId",
+        "type": "string",
+        "binding": {
+          "nodeId": "end2",
+          "outputId": "prId"
+        }
+      },
+      {
+        "id": "end2.dryRun",
+        "type": "boolean",
+        "binding": {
+          "nodeId": "end2",
+          "outputId": "dryRun"
+        }
+      },
+      {
         "id": "end2.finalPrStatus",
         "type": "string",
         "binding": {
@@ -5903,14 +7584,6 @@
         "binding": {
           "nodeId": "end2",
           "outputId": "humanComment"
-        }
-      },
-      {
-        "id": "end2.prId",
-        "type": "string",
-        "binding": {
-          "nodeId": "end2",
-          "outputId": "prId"
         }
       },
       {
@@ -5978,6 +7651,22 @@
         }
       },
       {
+        "id": "end3.prId",
+        "type": "string",
+        "binding": {
+          "nodeId": "end3",
+          "outputId": "prId"
+        }
+      },
+      {
+        "id": "end3.dryRun",
+        "type": "boolean",
+        "binding": {
+          "nodeId": "end3",
+          "outputId": "dryRun"
+        }
+      },
+      {
         "id": "end3.finalPrStatus",
         "type": "string",
         "binding": {
@@ -6018,11 +7707,123 @@
         }
       },
       {
-        "id": "end3.prId",
+        "id": "end4.caseId",
         "type": "string",
         "binding": {
-          "nodeId": "end3",
+          "nodeId": "end4",
+          "outputId": "caseId"
+        }
+      },
+      {
+        "id": "end4.outcome",
+        "type": "string",
+        "binding": {
+          "nodeId": "end4",
+          "outputId": "outcome"
+        }
+      },
+      {
+        "id": "end4.path",
+        "type": "string",
+        "binding": {
+          "nodeId": "end4",
+          "outputId": "path"
+        }
+      },
+      {
+        "id": "end4.ruleScore",
+        "type": "number",
+        "binding": {
+          "nodeId": "end4",
+          "outputId": "ruleScore"
+        }
+      },
+      {
+        "id": "end4.agentVerdict",
+        "type": "string",
+        "binding": {
+          "nodeId": "end4",
+          "outputId": "agentVerdict"
+        }
+      },
+      {
+        "id": "end4.humanDecision",
+        "type": "string",
+        "binding": {
+          "nodeId": "end4",
+          "outputId": "humanDecision"
+        }
+      },
+      {
+        "id": "end4.pathValue",
+        "type": "string",
+        "binding": {
+          "nodeId": "end4",
+          "outputId": "pathValue"
+        }
+      },
+      {
+        "id": "end4.humanDecisionValue",
+        "type": "string",
+        "binding": {
+          "nodeId": "end4",
+          "outputId": "humanDecisionValue"
+        }
+      },
+      {
+        "id": "end4.prId",
+        "type": "string",
+        "binding": {
+          "nodeId": "end4",
           "outputId": "prId"
+        }
+      },
+      {
+        "id": "end4.dryRun",
+        "type": "boolean",
+        "binding": {
+          "nodeId": "end4",
+          "outputId": "dryRun"
+        }
+      },
+      {
+        "id": "end4.finalPrStatus",
+        "type": "string",
+        "binding": {
+          "nodeId": "end4",
+          "outputId": "finalPrStatus"
+        }
+      },
+      {
+        "id": "end4.needsReview",
+        "type": "boolean",
+        "binding": {
+          "nodeId": "end4",
+          "outputId": "needsReview"
+        }
+      },
+      {
+        "id": "end4.agentResult",
+        "type": "object",
+        "binding": {
+          "nodeId": "end4",
+          "outputId": "agentResult"
+        }
+      },
+      {
+        "id": "end4.justification",
+        "type": "string",
+        "binding": {
+          "nodeId": "end4",
+          "outputId": "justification"
+        }
+      },
+      {
+        "id": "end4.humanComment",
+        "type": "string",
+        "binding": {
+          "nodeId": "end4",
+          "outputId": "humanComment"
         }
       },
       {
@@ -7356,119 +9157,371 @@
         }
       },
       {
-        "id": "end4.caseId",
+        "id": "notifyText.output",
+        "type": "object",
+        "description": "The return value of the script",
+        "binding": {
+          "nodeId": "notifyText",
+          "outputId": "output"
+        }
+      },
+      {
+        "id": "notifyText.error",
+        "type": "object",
+        "description": "Error information if the script fails",
+        "schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "required": [
+            "code",
+            "message",
+            "detail",
+            "category",
+            "status"
+          ],
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Error code as a string"
+            },
+            "message": {
+              "type": "string",
+              "description": "High-level error message"
+            },
+            "detail": {
+              "type": "string",
+              "description": "Detailed error description"
+            },
+            "category": {
+              "type": "string",
+              "description": "Error category"
+            },
+            "status": {
+              "type": "integer",
+              "description": "HTTP status code"
+            }
+          },
+          "additionalProperties": false
+        },
+        "binding": {
+          "nodeId": "notifyText",
+          "outputId": "error"
+        }
+      },
+      {
+        "id": "notify.output",
+        "type": "object",
+        "description": "The return value of the connector.",
+        "binding": {
+          "nodeId": "notify",
+          "outputId": "output"
+        }
+      },
+      {
+        "id": "notify.error",
+        "type": "object",
+        "description": "Error information if the node fails",
+        "schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "required": [
+            "code",
+            "message",
+            "detail",
+            "category",
+            "status"
+          ],
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Error code as a string"
+            },
+            "message": {
+              "type": "string",
+              "description": "High-level error message"
+            },
+            "detail": {
+              "type": "string",
+              "description": "Detailed error description"
+            },
+            "category": {
+              "type": "string",
+              "description": "Error category"
+            },
+            "status": {
+              "type": "integer",
+              "description": "HTTP status code"
+            }
+          },
+          "additionalProperties": false
+        },
+        "binding": {
+          "nodeId": "notify",
+          "outputId": "error"
+        }
+      },
+      {
+        "id": "notifyDone.output",
+        "type": "string",
+        "description": "The return value of the script",
+        "binding": {
+          "nodeId": "notifyDone",
+          "outputId": "output"
+        }
+      },
+      {
+        "id": "notifyDone.error",
+        "type": "object",
+        "description": "Error information if the script fails",
+        "schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "required": [
+            "code",
+            "message",
+            "detail",
+            "category",
+            "status"
+          ],
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Error code as a string"
+            },
+            "message": {
+              "type": "string",
+              "description": "High-level error message"
+            },
+            "detail": {
+              "type": "string",
+              "description": "Detailed error description"
+            },
+            "category": {
+              "type": "string",
+              "description": "Error category"
+            },
+            "status": {
+              "type": "integer",
+              "description": "HTTP status code"
+            }
+          },
+          "additionalProperties": false
+        },
+        "binding": {
+          "nodeId": "notifyDone",
+          "outputId": "error"
+        }
+      },
+      {
+        "id": "end5.caseId",
         "type": "string",
         "binding": {
-          "nodeId": "end4",
+          "nodeId": "end5",
           "outputId": "caseId"
         }
       },
       {
-        "id": "end4.outcome",
+        "id": "end5.outcome",
         "type": "string",
         "binding": {
-          "nodeId": "end4",
+          "nodeId": "end5",
           "outputId": "outcome"
         }
       },
       {
-        "id": "end4.path",
+        "id": "end5.path",
         "type": "string",
         "binding": {
-          "nodeId": "end4",
+          "nodeId": "end5",
           "outputId": "path"
         }
       },
       {
-        "id": "end4.ruleScore",
+        "id": "end5.ruleScore",
         "type": "number",
         "binding": {
-          "nodeId": "end4",
+          "nodeId": "end5",
           "outputId": "ruleScore"
         }
       },
       {
-        "id": "end4.agentVerdict",
+        "id": "end5.agentVerdict",
         "type": "string",
         "binding": {
-          "nodeId": "end4",
+          "nodeId": "end5",
           "outputId": "agentVerdict"
         }
       },
       {
-        "id": "end4.humanDecision",
+        "id": "end5.humanDecision",
         "type": "string",
         "binding": {
-          "nodeId": "end4",
+          "nodeId": "end5",
           "outputId": "humanDecision"
         }
       },
       {
-        "id": "end4.pathValue",
+        "id": "end5.pathValue",
         "type": "string",
         "binding": {
-          "nodeId": "end4",
+          "nodeId": "end5",
           "outputId": "pathValue"
         }
       },
       {
-        "id": "end4.humanDecisionValue",
+        "id": "end5.humanDecisionValue",
         "type": "string",
         "binding": {
-          "nodeId": "end4",
+          "nodeId": "end5",
           "outputId": "humanDecisionValue"
         }
       },
       {
-        "id": "end4.finalPrStatus",
+        "id": "end5.prId",
         "type": "string",
         "binding": {
-          "nodeId": "end4",
+          "nodeId": "end5",
+          "outputId": "prId"
+        }
+      },
+      {
+        "id": "end5.dryRun",
+        "type": "boolean",
+        "binding": {
+          "nodeId": "end5",
+          "outputId": "dryRun"
+        }
+      },
+      {
+        "id": "end5.finalPrStatus",
+        "type": "string",
+        "binding": {
+          "nodeId": "end5",
           "outputId": "finalPrStatus"
         }
       },
       {
-        "id": "end4.needsReview",
+        "id": "end5.needsReview",
         "type": "boolean",
         "binding": {
-          "nodeId": "end4",
+          "nodeId": "end5",
           "outputId": "needsReview"
         }
       },
       {
-        "id": "end4.agentResult",
+        "id": "end5.agentResult",
         "type": "object",
         "binding": {
-          "nodeId": "end4",
+          "nodeId": "end5",
           "outputId": "agentResult"
         }
       },
       {
-        "id": "end4.justification",
+        "id": "end5.justification",
         "type": "string",
         "binding": {
-          "nodeId": "end4",
+          "nodeId": "end5",
           "outputId": "justification"
         }
       },
       {
-        "id": "end4.humanComment",
+        "id": "end5.humanComment",
         "type": "string",
         "binding": {
-          "nodeId": "end4",
+          "nodeId": "end5",
           "outputId": "humanComment"
         }
       },
       {
-        "id": "end4.prId",
-        "type": "string",
+        "id": "onPrCreated.output",
+        "type": "object",
+        "description": "The return value of the connector trigger.",
         "binding": {
-          "nodeId": "end4",
-          "outputId": "prId"
+          "nodeId": "onPrCreated",
+          "outputId": "output"
+        }
+      },
+      {
+        "id": "createdPr.output",
+        "type": "jsonSchema",
+        "description": "Entity record read by this node",
+        "binding": {
+          "nodeId": "createdPr",
+          "outputId": "output"
+        }
+      },
+      {
+        "id": "fromEvent.output",
+        "type": "string",
+        "description": "The return value of the script",
+        "binding": {
+          "nodeId": "fromEvent",
+          "outputId": "output"
+        }
+      },
+      {
+        "id": "fromEvent.error",
+        "type": "object",
+        "description": "Error information if the script fails",
+        "schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "required": [
+            "code",
+            "message",
+            "detail",
+            "category",
+            "status"
+          ],
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Error code as a string"
+            },
+            "message": {
+              "type": "string",
+              "description": "High-level error message"
+            },
+            "detail": {
+              "type": "string",
+              "description": "Detailed error description"
+            },
+            "category": {
+              "type": "string",
+              "description": "Error category"
+            },
+            "status": {
+              "type": "integer",
+              "description": "HTTP status code"
+            }
+          },
+          "additionalProperties": false
+        },
+        "binding": {
+          "nodeId": "fromEvent",
+          "outputId": "error"
         }
       }
     ],
     "variableUpdates": {
+      "resolveRun": [
+        {
+          "variableId": "prId",
+          "expression": {
+            "type": "jsExpression",
+            "expression": "$vars.resolveRun.output.prId",
+            "fieldType": "string"
+          }
+        },
+        {
+          "variableId": "dryRun",
+          "expression": {
+            "type": "jsExpression",
+            "expression": "$vars.resolveRun.output.dryRun",
+            "fieldType": "boolean"
+          }
+        }
+      ],
       "ruleRelease": [
         {
           "variableId": "pathValue",
@@ -7731,19 +9784,64 @@
           }
         }
       ],
-      "start": [
+      "fromEvent": [
         {
           "variableId": "prId",
           "expression": {
             "type": "jsExpression",
-            "expression": "$vars.start.output.requisitionId",
+            "expression": "$vars.fromEvent.output",
             "fieldType": "string"
+          }
+        },
+        {
+          "variableId": "dryRun",
+          "expression": {
+            "type": "jsExpression",
+            "expression": "false",
+            "fieldType": "boolean"
           }
         }
       ]
     }
   },
-  "bindings": [],
+  "bindings": [
+    {
+      "id": "bUipathgooglegmailConnection",
+      "name": "uipath-google-gmail connection",
+      "type": "string",
+      "resource": "connection",
+      "resourceKey": "66dfd117-f846-4b6f-899c-c834852ce1dc",
+      "default": "66dfd117-f846-4b6f-899c-c834852ce1dc",
+      "propertyAttribute": "ConnectionId"
+    },
+    {
+      "id": "bUipathgooglegmailFolderKey",
+      "name": "FolderKey",
+      "type": "string",
+      "resource": "connection",
+      "resourceKey": "66dfd117-f846-4b6f-899c-c834852ce1dc",
+      "default": "179dba0b-3aef-485e-ae12-24aa686ed19f",
+      "propertyAttribute": "FolderKey"
+    },
+    {
+      "id": "bUipathuipathdataserviceConnection",
+      "name": "uipath-uipath-dataservice connection",
+      "type": "string",
+      "resource": "connection",
+      "resourceKey": "01745482-f6ba-4353-addc-38659df5845c",
+      "default": "01745482-f6ba-4353-addc-38659df5845c",
+      "propertyAttribute": "ConnectionId"
+    },
+    {
+      "id": "bUipathuipathdataserviceFolderKey",
+      "name": "FolderKey",
+      "type": "string",
+      "resource": "connection",
+      "resourceKey": "01745482-f6ba-4353-addc-38659df5845c",
+      "default": "179dba0b-3aef-485e-ae12-24aa686ed19f",
+      "propertyAttribute": "FolderKey"
+    }
+  ],
   "solutionId": "",
   "projectId": "",
   "runtime": "maestro",
@@ -7760,10 +9858,21 @@
         },
         "collapsed": false
       },
-      "existingCase": {
+      "resolveRun": {
         "position": {
           "x": 448,
-          "y": 144
+          "y": 320
+        },
+        "size": {
+          "width": 96,
+          "height": 96
+        },
+        "collapsed": false
+      },
+      "existingCase": {
+        "position": {
+          "x": 640,
+          "y": 304
         },
         "size": {
           "width": 96,
@@ -7773,8 +9882,8 @@
       },
       "alreadyChecked": {
         "position": {
-          "x": 640,
-          "y": 144
+          "x": 832,
+          "y": 304
         },
         "size": {
           "width": 96,
@@ -7784,8 +9893,8 @@
       },
       "end": {
         "position": {
-          "x": 832,
-          "y": -32
+          "x": 1024,
+          "y": 128
         },
         "size": {
           "width": 96,
@@ -7795,8 +9904,8 @@
       },
       "loadPrs": {
         "position": {
-          "x": 832,
-          "y": 160
+          "x": 1024,
+          "y": 320
         },
         "size": {
           "width": 96,
@@ -7806,8 +9915,8 @@
       },
       "loadEmployees": {
         "position": {
-          "x": 1024,
-          "y": 160
+          "x": 1216,
+          "y": 320
         },
         "size": {
           "width": 96,
@@ -7817,8 +9926,8 @@
       },
       "loadVendors": {
         "position": {
-          "x": 1216,
-          "y": 160
+          "x": 1408,
+          "y": 320
         },
         "size": {
           "width": 96,
@@ -7828,8 +9937,8 @@
       },
       "loadMatrix": {
         "position": {
-          "x": 1408,
-          "y": 160
+          "x": 1600,
+          "y": 320
         },
         "size": {
           "width": 96,
@@ -7839,8 +9948,8 @@
       },
       "loadBlankets": {
         "position": {
-          "x": 1600,
-          "y": 160
+          "x": 1792,
+          "y": 320
         },
         "size": {
           "width": 96,
@@ -7850,8 +9959,8 @@
       },
       "rules": {
         "position": {
-          "x": 1792,
-          "y": 160
+          "x": 1984,
+          "y": 320
         },
         "size": {
           "width": 96,
@@ -7861,8 +9970,8 @@
       },
       "end2": {
         "position": {
-          "x": 1984,
-          "y": 336
+          "x": 2176,
+          "y": 496
         },
         "size": {
           "width": 96,
@@ -7872,8 +9981,8 @@
       },
       "route": {
         "position": {
-          "x": 1984,
-          "y": 144
+          "x": 2176,
+          "y": 304
         },
         "size": {
           "width": 96,
@@ -7883,8 +9992,19 @@
       },
       "end3": {
         "position": {
-          "x": 2176,
-          "y": 0
+          "x": 2384,
+          "y": -32
+        },
+        "size": {
+          "width": 96,
+          "height": 96
+        },
+        "collapsed": false
+      },
+      "end4": {
+        "position": {
+          "x": 2384,
+          "y": 160
         },
         "size": {
           "width": 96,
@@ -7894,8 +10014,8 @@
       },
       "ruleRelease": {
         "position": {
-          "x": 2560,
-          "y": 16
+          "x": 2768,
+          "y": 176
         },
         "size": {
           "width": 96,
@@ -7905,8 +10025,8 @@
       },
       "holdUnverified": {
         "position": {
-          "x": 2752,
-          "y": 160
+          "x": 2960,
+          "y": 320
         },
         "size": {
           "width": 96,
@@ -7916,8 +10036,8 @@
       },
       "judge": {
         "position": {
-          "x": 2176,
-          "y": 304
+          "x": 2384,
+          "y": 464
         },
         "size": {
           "width": 288,
@@ -7927,8 +10047,8 @@
       },
       "check1": {
         "position": {
-          "x": 2560,
-          "y": 320
+          "x": 2768,
+          "y": 480
         },
         "size": {
           "width": 96,
@@ -7938,8 +10058,8 @@
       },
       "retryNeeded": {
         "position": {
-          "x": 2752,
-          "y": 352
+          "x": 2960,
+          "y": 512
         },
         "size": {
           "width": 96,
@@ -7949,8 +10069,8 @@
       },
       "judgeRetry": {
         "position": {
-          "x": 2944,
-          "y": 224
+          "x": 3152,
+          "y": 384
         },
         "size": {
           "width": 288,
@@ -7960,8 +10080,8 @@
       },
       "check2": {
         "position": {
-          "x": 3328,
-          "y": 224
+          "x": 3536,
+          "y": 384
         },
         "size": {
           "width": 96,
@@ -7971,8 +10091,8 @@
       },
       "gateway": {
         "position": {
-          "x": 3520,
-          "y": 368
+          "x": 3728,
+          "y": 528
         },
         "size": {
           "width": 96,
@@ -7982,8 +10102,8 @@
       },
       "decision": {
         "position": {
-          "x": 3712,
-          "y": 352
+          "x": 3920,
+          "y": 512
         },
         "size": {
           "width": 96,
@@ -7992,50 +10112,6 @@
         "collapsed": false
       },
       "agentRelease": {
-        "position": {
-          "x": 4096,
-          "y": 144
-        },
-        "size": {
-          "width": 96,
-          "height": 96
-        },
-        "collapsed": false
-      },
-      "askCard": {
-        "position": {
-          "x": 3904,
-          "y": 352
-        },
-        "size": {
-          "width": 96,
-          "height": 96
-        },
-        "collapsed": false
-      },
-      "requesterTask": {
-        "position": {
-          "x": 4096,
-          "y": 336
-        },
-        "size": {
-          "width": 96,
-          "height": 96
-        },
-        "collapsed": false
-      },
-      "requesterConsolidates": {
-        "position": {
-          "x": 4592,
-          "y": 144
-        },
-        "size": {
-          "width": 96,
-          "height": 96
-        },
-        "collapsed": false
-      },
-      "keepJustification": {
         "position": {
           "x": 4304,
           "y": 304
@@ -8046,21 +10122,10 @@
         },
         "collapsed": false
       },
-      "rejudge": {
+      "askCard": {
         "position": {
-          "x": 4496,
-          "y": 336
-        },
-        "size": {
-          "width": 288,
-          "height": 96
-        },
-        "collapsed": false
-      },
-      "check3": {
-        "position": {
-          "x": 4880,
-          "y": 320
+          "x": 4112,
+          "y": 512
         },
         "size": {
           "width": 96,
@@ -8068,18 +10133,7 @@
         },
         "collapsed": false
       },
-      "gateway2": {
-        "position": {
-          "x": 5072,
-          "y": 304
-        },
-        "size": {
-          "width": 96,
-          "height": 96
-        },
-        "collapsed": false
-      },
-      "markReview": {
+      "requesterTask": {
         "position": {
           "x": 4304,
           "y": 496
@@ -8090,10 +10144,76 @@
         },
         "collapsed": false
       },
-      "reviewNeeded": {
+      "requesterConsolidates": {
+        "position": {
+          "x": 4784,
+          "y": 304
+        },
+        "size": {
+          "width": 96,
+          "height": 96
+        },
+        "collapsed": false
+      },
+      "keepJustification": {
+        "position": {
+          "x": 4496,
+          "y": 464
+        },
+        "size": {
+          "width": 96,
+          "height": 96
+        },
+        "collapsed": false
+      },
+      "rejudge": {
+        "position": {
+          "x": 4688,
+          "y": 496
+        },
+        "size": {
+          "width": 288,
+          "height": 96
+        },
+        "collapsed": false
+      },
+      "check3": {
+        "position": {
+          "x": 5072,
+          "y": 480
+        },
+        "size": {
+          "width": 96,
+          "height": 96
+        },
+        "collapsed": false
+      },
+      "gateway2": {
         "position": {
           "x": 5264,
-          "y": 0
+          "y": 464
+        },
+        "size": {
+          "width": 96,
+          "height": 96
+        },
+        "collapsed": false
+      },
+      "markReview": {
+        "position": {
+          "x": 4496,
+          "y": 656
+        },
+        "size": {
+          "width": 96,
+          "height": 96
+        },
+        "collapsed": false
+      },
+      "reviewNeeded": {
+        "position": {
+          "x": 5456,
+          "y": 160
         },
         "size": {
           "width": 96,
@@ -8103,8 +10223,8 @@
       },
       "reviewCard": {
         "position": {
-          "x": 5456,
-          "y": -320
+          "x": 5648,
+          "y": -160
         },
         "size": {
           "width": 96,
@@ -8114,8 +10234,8 @@
       },
       "approverReview": {
         "position": {
-          "x": 5648,
-          "y": -336
+          "x": 5840,
+          "y": -176
         },
         "size": {
           "width": 96,
@@ -8125,8 +10245,8 @@
       },
       "decConsolidate": {
         "position": {
-          "x": 5840,
-          "y": -704
+          "x": 6048,
+          "y": -544
         },
         "size": {
           "width": 96,
@@ -8136,8 +10256,8 @@
       },
       "decApproveSeparate": {
         "position": {
-          "x": 5840,
-          "y": -512
+          "x": 6048,
+          "y": -352
         },
         "size": {
           "width": 96,
@@ -8147,8 +10267,8 @@
       },
       "decReject": {
         "position": {
-          "x": 5840,
-          "y": -320
+          "x": 6048,
+          "y": -160
         },
         "size": {
           "width": 96,
@@ -8158,8 +10278,8 @@
       },
       "decFalsePositive": {
         "position": {
-          "x": 5840,
-          "y": -128
+          "x": 6048,
+          "y": 32
         },
         "size": {
           "width": 96,
@@ -8169,8 +10289,8 @@
       },
       "finalize": {
         "position": {
-          "x": 6032,
-          "y": -336
+          "x": 6240,
+          "y": -176
         },
         "size": {
           "width": 96,
@@ -8180,8 +10300,8 @@
       },
       "applyStatus": {
         "position": {
-          "x": 6224,
-          "y": -416
+          "x": 6432,
+          "y": -256
         },
         "size": {
           "width": 560,
@@ -8202,8 +10322,8 @@
       },
       "writeCase": {
         "position": {
-          "x": 6880,
-          "y": -400
+          "x": 7088,
+          "y": -240
         },
         "size": {
           "width": 96,
@@ -8211,10 +10331,87 @@
         },
         "collapsed": false
       },
-      "end4": {
+      "notifyNeeded": {
         "position": {
-          "x": 7072,
-          "y": -400
+          "x": 7280,
+          "y": -240
+        },
+        "size": {
+          "width": 96,
+          "height": 96
+        },
+        "collapsed": false
+      },
+      "notifyText": {
+        "position": {
+          "x": 7472,
+          "y": -368
+        },
+        "size": {
+          "width": 96,
+          "height": 96
+        },
+        "collapsed": false
+      },
+      "notify": {
+        "position": {
+          "x": 7664,
+          "y": -384
+        },
+        "size": {
+          "width": 96,
+          "height": 96
+        },
+        "collapsed": false
+      },
+      "notifyDone": {
+        "position": {
+          "x": 7856,
+          "y": -368
+        },
+        "size": {
+          "width": 96,
+          "height": 96
+        },
+        "collapsed": false
+      },
+      "end5": {
+        "position": {
+          "x": 8048,
+          "y": -224
+        },
+        "size": {
+          "width": 96,
+          "height": 96
+        },
+        "collapsed": false
+      },
+      "onPrCreated": {
+        "position": {
+          "x": -128,
+          "y": 336
+        },
+        "size": {
+          "width": 96,
+          "height": 96
+        },
+        "collapsed": false
+      },
+      "createdPr": {
+        "position": {
+          "x": 64,
+          "y": 336
+        },
+        "size": {
+          "width": 96,
+          "height": 96
+        },
+        "collapsed": false
+      },
+      "fromEvent": {
+        "position": {
+          "x": 256,
+          "y": 336
         },
         "size": {
           "width": 96,

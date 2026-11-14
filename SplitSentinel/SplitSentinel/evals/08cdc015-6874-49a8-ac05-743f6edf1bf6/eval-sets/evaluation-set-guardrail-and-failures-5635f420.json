@@ -1,0 +1,140 @@
+{
+  "version": "1.0",
+  "id": "5635f420-9860-4d6f-b321-e830c3a6dee6",
+  "name": "Guardrail and failures",
+  "evaluatorRefs": [
+    "exact-match-evaluator.json",
+    "llm-judge-evaluator.json",
+    "llm-judge-trajectory-evaluator.json",
+    "path-exact-match-6d17adb6.json"
+  ],
+  "evaluations": [
+    {
+      "id": "d88bbf23-d78e-42db-9c43-54d1d8c8718d",
+      "name": "T12 guardrail: agent clears a score-80 case",
+      "inputs": {
+        "requisitionId": "PR-2003",
+        "whatIf": true
+      },
+      "expectedOutput": {
+        "path": "GUARDRAIL_REVIEW"
+      },
+      "evaluationCriterias": {
+        "exact-match-eval-001": {
+          "expectedOutput": {
+            "path": "GUARDRAIL_REVIEW"
+          }
+        },
+        "llm-judge-eval-001": {
+          "expectedOutput": {
+            "path": "GUARDRAIL_REVIEW"
+          }
+        },
+        "llm-judge-trajectory-eval-001": {
+          "expectedAgentBehavior": "The flow should follow the captured successful path and complete with the expected result."
+        },
+        "path-exact-match-6d17adb6": {
+          "expectedOutput": {
+            "path": "GUARDRAIL_REVIEW"
+          }
+        }
+      },
+      "createdAt": "2026-11-14T03:34:32.226Z",
+      "updatedAt": "2026-11-14T03:34:40.941Z",
+      "simulations": [
+        {
+          "componentId": "judge",
+          "componentType": "agent",
+          "simulationStrategy": "Static",
+          "mockValue": {
+            "verdict": "NOT_SPLIT",
+            "confidence": 0.9,
+            "patterns": [],
+            "relatedPrIds": [
+              "PR-2003"
+            ],
+            "combinedAmount": 95000,
+            "requiredApprovalTier": "T1",
+            "competitiveBidRequired": false,
+            "legitException": "NONE",
+            "reasoning": "Simulated: agent wrongly clears a high-risk case.",
+            "suggestedAction": "APPROVE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "fd3ba472-a0c6-4e92-b89c-9654ca8cd70c",
+      "name": "T11 agent invalid twice",
+      "inputs": {
+        "requisitionId": "PR-2013",
+        "whatIf": true
+      },
+      "expectedOutput": {
+        "path": "FAILED_REVIEW"
+      },
+      "evaluationCriterias": {
+        "exact-match-eval-001": {
+          "expectedOutput": {
+            "path": "FAILED_REVIEW"
+          }
+        },
+        "llm-judge-eval-001": {
+          "expectedOutput": {
+            "path": "FAILED_REVIEW"
+          }
+        },
+        "llm-judge-trajectory-eval-001": {
+          "expectedAgentBehavior": "The flow should follow the captured successful path and complete with the expected result."
+        },
+        "path-exact-match-6d17adb6": {
+          "expectedOutput": {
+            "path": "FAILED_REVIEW"
+          }
+        }
+      },
+      "createdAt": "2026-11-14T03:34:33.256Z",
+      "updatedAt": "2026-11-14T03:34:43.208Z",
+      "simulations": [
+        {
+          "componentId": "judge",
+          "componentType": "agent",
+          "simulationStrategy": "Static",
+          "mockValue": {
+            "verdict": "MAYBE",
+            "confidence": 2,
+            "patterns": [],
+            "relatedPrIds": [],
+            "combinedAmount": 0,
+            "requiredApprovalTier": "T9",
+            "competitiveBidRequired": false,
+            "legitException": "UNSURE",
+            "reasoning": "",
+            "suggestedAction": "WAIT"
+          }
+        },
+        {
+          "componentId": "judgeRetry",
+          "componentType": "agent",
+          "simulationStrategy": "Static",
+          "mockValue": {
+            "verdict": "MAYBE",
+            "confidence": 2,
+            "patterns": [],
+            "relatedPrIds": [],
+            "combinedAmount": 0,
+            "requiredApprovalTier": "T9",
+            "competitiveBidRequired": false,
+            "legitException": "UNSURE",
+            "reasoning": "",
+            "suggestedAction": "WAIT"
+          }
+        }
+      ]
+    }
+  ],
+  "selectedEntrypoint": "start",
+  "fileName": "evaluation-set-guardrail-and-failures-5635f420.json",
+  "createdAt": "2026-11-14T03:34:31.038Z",
+  "updatedAt": "2026-11-14T03:34:43.208Z"
+}

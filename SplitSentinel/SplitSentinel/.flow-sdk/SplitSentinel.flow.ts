@@ -1,8 +1,10 @@
 import { readFileSync } from "node:fs";
 import {
-  flow, manual, script, inlineAgent, hitl, dataFabricRead, dataFabricCreate, dataFabricUpdate,
+  flow, manual, onEvent, lookup, connector, script, inlineAgent, hitl, dataFabricRead, dataFabricCreate, dataFabricUpdate,
   out, v, lit, js, tmpl, types,
 } from "@uipath/maestro-builder-sdk";
+import { RecordCreated } from "./connectors-local/uipath-uipath-dataservice.ts";
+import { SendEmail } from "./connectors-local/uipath-google-gmail.ts";
 
 // SplitSentinel: checks a submitted purchase requisition for split purchasing.
 // Rule engine and agent assets live at the repo root and are inlined at compile time,
@@ -52,6 +54,10 @@ var prId = $vars.prId;
 var prs = rows('loadPrs');
 var anchor = prs.filter(function (p) { return p.prId === prId; })[0];
 if (!anchor) return { route: 'NOT_FOUND', score: 0, patterns: '', signals: '[]', groupPrIds: [], knownPrIds: [] };
+// Only submitted PRs are checked for real; what-if runs may re-check a PR in any status.
+if (!$vars.dryRun && anchor.status !== 'Submitted') {
+  return { route: 'NOT_SUBMITTED', score: 0, patterns: '', signals: '[]', groupPrIds: [], knownPrIds: [] };
+}
 var employees = rows('loadEmployees');
 var vendors = rows('loadVendors');
 var matrix = rows('loadMatrix');
@@ -161,16 +167,16 @@ var st = $vars.finalPrStatus;
 var rules = $vars.rules.output;
 var a = $vars.agentResult || {};
 var related = (a.relatedPrIds && a.relatedPrIds.length) ? a.relatedPrIds : rules.groupPrIds;
-var targets = (st === 'Consolidated' || st === 'Rejected') ? related : [$vars.prId];
+var targets = $vars.dryRun ? [] : (st === 'Consolidated' || st === 'Rejected') ? related : [$vars.prId];
 var log = [
   'rules: score ' + rules.score + ' [' + rules.patterns + '] route ' + rules.route,
   'agent: ' + (a.verdict || 'NOT_RUN') + (a.corrections ? ' (corrected: ' + a.corrections + ')' : ''),
   'path: ' + $vars.path,
   'human: ' + ($vars.humanDecision || 'none'),
-  'final: ' + st + ' -> ' + targets.join(',')
+  'final: ' + st + ' -> ' + ($vars.dryRun ? 'what-if run, no PR updated' : targets.join(','))
 ].join('\\n');
 return {
-  caseId: 'SC-' + $vars.prId,
+  caseId: ($vars.dryRun ? 'WHATIF-' + $vars.prId + '-' + Date.now() : 'SC-' + $vars.prId),
   targetRecordIds: targets.map(function (x) { return rules.recordIds[x]; }).filter(function (x) { return x; }),
   relatedPrIds: related.join(','),
   agentVerdict: a.verdict || 'NOT_RUN',
@@ -203,6 +209,37 @@ return { caseSummary: 'Your requisitions ' + (a.relatedPrIds || []).join(', ') +
   + a.combinedAmount + ', tier ' + a.requiredApprovalTier + '). Explain why they are separate requirements, or choose Consolidate.' };
 `;
 
+// Notification text per outcome (templates/notifications.md). Saved as a Gmail draft.
+const NOTIFY_CODE = `
+var rules = $vars.rules.output;
+var a = $vars.agentResult || {};
+var st = $vars.finalPrStatus;
+var caseId = $vars.finalize.output.caseId;
+var related = $vars.finalize.output.relatedPrIds;
+var amount = a.combinedAmount || rules.combinedAmount;
+var tier = a.requiredApprovalTier || rules.combinedTier;
+var hi = 'Hi ' + rules.requesterName + ',\\n\\n';
+var foot = '\\n\\nSplitSentinel case: ' + caseId;
+var subject, body;
+if (st === 'Consolidated') {
+  subject = 'PRs ' + related + ' consolidated';
+  body = hi + 'Your requisitions ' + related + ' were reviewed and consolidated into one requirement of INR ' + amount
+    + '. It now goes through tier ' + tier + ' approval' + (a.competitiveBidRequired ? ' and a competitive bid (RFQ)' : '') + '.'
+    + ($vars.humanComment ? '\\n\\nComment: ' + $vars.humanComment : '') + foot;
+} else if (st === 'Rejected') {
+  subject = 'PR ' + $vars.prId + ' rejected';
+  body = hi + 'Requisition(s) ' + related + ' were rejected.' + ($vars.humanComment ? '\\n\\nComment: ' + $vars.humanComment : '') + foot;
+} else if (st === 'Unverified') {
+  subject = 'PR ' + $vars.prId + ' on hold: check could not be completed';
+  body = hi + 'SplitSentinel could not load the data needed to check PR ' + $vars.prId + ', so it is on hold. Procurement operations will re-run the check.' + foot;
+} else {
+  subject = 'PR ' + $vars.prId + ' approved for normal routing';
+  body = hi + 'Your purchase requisition ' + $vars.prId + ' passed the SplitSentinel check and continues through normal approval.'
+    + ($vars.humanDecision ? '\\n\\nReviewer decision: ' + $vars.humanDecision + ($vars.humanComment ? ' (' + $vars.humanComment + ')' : '') : '') + foot;
+}
+return { to: rules.requesterEmail, cc: (st === 'Consolidated' || st === 'Rejected') ? rules.managerEmail : '', subject: 'SplitSentinel: ' + subject, body: body };
+`;
+
 const reviewFields = [
   { id: "caseSummary", label: "Possible split", type: "string", direction: "input" as const, value: out("reviewCard", "caseSummary") },
   { id: "relatedPrs", label: "Related PRs (id | date | vendor | item | amount)", type: "string", direction: "input" as const, value: out("rules", "summary") },
@@ -216,11 +253,25 @@ export default flow("08cdc015-6874-49a8-ac05-743f6edf1bf6")
   .schemaVersion("1.9")
   .name("SplitSentinel")
   .trigger(manual(), { version: "1.0" })
-  .input({ requisitionId: { type: types.string, shared: "prId" } })
+  .input({ requisitionId: types.string, whatIf: types.boolean })
+  // Second root: start automatically when a PurchaseRequisition record is created.
+  // The event carries only the record Id, so the prefix looks the PR up to get its prId.
+  .entryPoint("onPrCreated", onEvent(RecordCreated, {
+    where: {
+      entityScope: lookup(RecordCreated, "entityScope").byDisplayName("Tenant"),
+      tenantEntityName: lookup(RecordCreated, "tenantEntityName").byDisplayName("PurchaseRequisition"),
+    },
+    connection: "dataFabric", folder: "shared",
+  }), {}, (b) => b
+    .step("createdPr", dataFabricRead({ entity: "PurchaseRequisition", filters: [{ field: "Id", value: js`$vars.onPrCreated.output.Id` }] }))
+    .step("fromEvent", script({ code: "var r = $vars.createdPr.output || {}; return String(r.prId || r.PrId || '');", returns: "string" }),
+      { updates: { prId: out("fromEvent"), dryRun: lit(false) } }))
   .output({
     caseId: types.string, outcome: types.string, path: types.string,
     ruleScore: types.number, agentVerdict: types.string, humanDecision: types.string,
   })
+  .var("prId", types.string, "")
+  .var("dryRun", types.boolean, false)
   .var("finalPrStatus", types.string, "Released")
   .var("path", types.string, "")
   .var("needsReview", types.boolean, false)
@@ -229,12 +280,21 @@ export default flow("08cdc015-6874-49a8-ac05-743f6edf1bf6")
   .var("humanDecision", types.string, "")
   .var("humanComment", types.string, "")
 
+  // 0. Resolve which PR this run is about: the manual root passes it as an input, the
+  // event root has already set prId in its prefix.
+  .step("resolveRun", script({
+    code: "var id = $vars.prId || ''; var w = false;"
+      + " try { if ($vars.start.output.requisitionId) { id = $vars.start.output.requisitionId; w = $vars.start.output.whatIf === true; } } catch (e) {}"
+      + " return { prId: id, dryRun: w };",
+    returns: { prId: "string", dryRun: "boolean" },
+  }), { updates: { prId: out("resolveRun", "prId"), dryRun: out("resolveRun", "dryRun") } })
+
   // 1. Idempotency: one SplitCase per anchor PR.
   .step("existingCase", dataFabricRead({
     entity: "SplitCase", resultMode: "multiple", limit: 1,
     filters: [{ field: "anchorPrId", value: v("prId") }],
   }))
-  .branch("alreadyChecked", js`($vars.existingCase.output.results || []).length > 0`,
+  .branch("alreadyChecked", js`!$vars.dryRun && ($vars.existingCase.output.results || []).length > 0`,
     (yes) => yes.return({ caseId: tmpl`SC-${v("prId")}`, outcome: lit("Skipped"), path: lit("SKIPPED_DUPLICATE"), ruleScore: lit(0), agentVerdict: lit("NOT_RUN"), humanDecision: lit("") }))
 
   // 2. Load context. Data Fabric reads have no error port: a failed read faults the run,
@@ -251,6 +311,7 @@ export default flow("08cdc015-6874-49a8-ac05-743f6edf1bf6")
 
   // 4. Route on the rule score.
   .switch("route", out("rules", "route"), [
+    { value: "NOT_SUBMITTED", body: (b) => b.return({ caseId: lit(""), outcome: lit("Skipped"), path: lit("NOT_SUBMITTED"), ruleScore: lit(0), agentVerdict: lit("NOT_RUN"), humanDecision: lit("") }) },
     { value: "NOT_FOUND", body: (b) => b.return({ caseId: lit(""), outcome: lit("NotFound"), path: lit("PR_NOT_FOUND"), ruleScore: lit(0), agentVerdict: lit("NOT_RUN"), humanDecision: lit("") }) },
     { value: "RELEASE", body: (b) => b.step("ruleRelease", script({ code: 'return "RULES_RELEASE";' }),
         { updates: { path: lit("RULES_RELEASE"), finalPrStatus: lit("Released") } }) },
@@ -372,6 +433,20 @@ export default flow("08cdc015-6874-49a8-ac05-743f6edf1bf6")
       runLog: out("finalize", "runLog"),
     },
   }))
+
+  // 10. Notify the requester (saved as a Gmail draft). Skipped on what-if runs; a failure is logged, never blocking.
+  .branch("notifyNeeded", js`!$vars.dryRun && !!$vars.rules.output.requesterEmail`,
+    (yes) => yes
+      .step("notifyText", script({ code: NOTIFY_CODE, returns: { to: "string", cc: "string", subject: "string", body: "string" } }))
+      .step("notify", connector(SendEmail, {
+        To: out("notifyText", "to"),
+        CC: out("notifyText", "cc"),
+        Subject: out("notifyText", "subject"),
+        Body: out("notifyText", "body"),
+        SaveAsDraft: true,
+      }, { connection: "gmail", folder: "shared" }))
+      .onError((h) => h.stepToRef("notifyDone"))
+      .step("notifyDone", script({ code: "return 'notified';" })))
   .return({
     caseId: out("finalize", "caseId"), outcome: v("finalPrStatus"), path: v("path"),
     ruleScore: out("rules", "score"), agentVerdict: out("finalize", "agentVerdict"), humanDecision: v("humanDecision"),

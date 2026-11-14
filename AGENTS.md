@@ -162,8 +162,8 @@ uip maestro flow debug SplitSentinel --log-level error --output json `
 ### Node types used by SplitSentinel
 | Purpose | Builder | Reference |
 |---|---|---|
-| Manual start (default root; input `requisitionId`, shared into var `prId`) | `.trigger(manual())` + `.input({ requisitionId: { type, shared: 'prId' } })` | `manual-trigger.md` |
-| Start on PR submitted (planned extra root) | `.entryPoint(id, onEvent(RecordCreated, { object: 'PurchaseRequisition', … }))` on connector `uipath-uipath-dataservice` | `event-trigger.md` |
+| Manual start (default root; inputs `requisitionId`, `whatIf`) | `.trigger(manual())` + `.input({ requisitionId, whatIf })`; first shared step `resolveRun` sets vars `prId` / `dryRun` | `manual-trigger.md` |
+| Start on PR created (second root `onPrCreated`) | `.entryPoint('onPrCreated', onEvent(RecordCreated, { where: { entityScope: lookup(…).byDisplayName('Tenant'), tenantEntityName: lookup(…).byDisplayName('PurchaseRequisition') }, connection: 'dataFabric', folder: 'shared' }))`. `record-created` is a **curated** event (object built in, no `object:`); its output is only the record `Id`, so the prefix reads the PR to get `prId`. Webhook mode: needs a deployed solution to fire | `event-trigger.md` |
 | Read / create / update records | `dataFabricRead` / `dataFabricCreate` / `dataFabricUpdate` (`resultMode: 'multiple'`, `limit` ≤ 1000) | `data-fabric.md` |
 | Rule engine, output validation, tier lookup | `script(...)` | `script.md` |
 | Split judgement | `inlineAgent(...)` | `inline-agent.md` |
@@ -171,7 +171,16 @@ uip maestro flow debug SplitSentinel --log-level error --output json `
 | Approver review and requester justification | `hitl({ variant: 'quick-form', ... })` (one exit per outcome; route with `.stepSwitch`) | `hitl.md` |
 | Fail-closed paths | `.onError(...)` on script and agent steps only. **`core.datafabric.read` has no error port** (`ONERROR_NO_ERROR_PORT`) | `error-handling.md` |
 | Apply status to several PRs | `.loop(name, collection, body)` with `dataFabricUpdate({ record: { byId } })` | `loops.md` |
-| Email notifications (planned) | `connector(...)` on `uipath-google-gmail` | `connector-params.md` |
+| Email notifications | `connector(SendEmail, { To, CC, Subject, Body, SaveAsDraft: true }, { connection: 'gmail', folder: 'shared' })`; saved as **drafts**, skipped on what-if runs, `.onError` continues | `connector-params.md` |
+
+### What-if mode
+`whatIf: true` on the manual root sets `dryRun`: the idempotency and "only Submitted PRs" checks are skipped, no PR status is changed, no email is drafted, and the audit row is written as `WHATIF-<prId>-<epoch ms>`. Use it for evaluation re-runs and tuning comparisons.
+
+### Connector descriptors
+`uip maestro registry prepare` writes descriptors to `.flow-sdk/connectors-local/`; import from there (`./connectors-local/<key>.ts`). Prepared so far: `uipath-uipath-dataservice` `record-created` (with `--resolve entityScope:displayName=Tenant --resolve tenantEntityName:displayName=PurchaseRequisition`) and `uipath-google-gmail` `send-email`.
+
+### Flow evaluations
+Eval set **"Guardrail and failures"** (project assets under the Flow project) uses Static simulations of the `judge` / `judgeRetry` agent steps and the `Path exact match` evaluator on the `path` output. Run: `uip maestro flow eval runs start --set "Guardrail and failures" --path .` from `SplitSentinel/SplitSentinel/`. Human tasks still appear and must be completed.
 
 ### Gotchas found while building
 - A `shared` input variable must not have the same name as the input (`SHARED_INPUT_TARGET_IS_INPUT`).
@@ -304,7 +313,7 @@ Use PRs from the last **30 days**, with status not Draft or Rejected, excluding 
 
 | # | Step | Behaviour |
 |---|---|---|
-| 0 | Trigger | Data Fabric record event on PurchaseRequisition with status = Submitted. Extra manual entry point takes `prId` for tests |
+| 0 | Trigger | Manual root (`requisitionId`, `whatIf`) or `onPrCreated` (Data Fabric record created). Non-Submitted PRs end as `NOT_SUBMITTED` unless what-if |
 | 1 | Idempotency | If a SplitCase with `anchorPrId = prId` exists → end |
 | 2 | Load context | Read PurchaseRequisition (≤ 1000, newest first), Employee, Vendor, ApprovalMatrix, BlanketPO; the rule engine filters by date. A failed read faults the run (no error port); empty reference data → 9U |
 | 3 | Rule engine | Script, §9 |
@@ -320,7 +329,7 @@ Use PRs from the last **30 days**, with status not Draft or Rejected, excluding 
 | 9X | Reject | PR(s) → Rejected |
 | 9U | Unverified hold | PR → Unverified; notify procurement ops |
 | 10 | Audit | Create/update SplitCase, including a step-by-step `runLog` |
-| 11 | Notify (planned) | Gmail email to the requester (and manager); failure must not block the case |
+| 11 | Notify | Gmail **draft** to the requester (CC manager on Consolidated/Rejected); skipped on what-if; failure does not block the case |
 | 12 | Repeat offender (optional) | ≥ 3 confirmed splits by the requester in 90 d → notify Audit |
 
 ### Gateway (step 7)

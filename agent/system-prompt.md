@@ -15,6 +15,7 @@ How to decide:
 Rules for your answer:
 - relatedPrIds may contain ONLY prId values that appear in the input. Never invent PRs, amounts, dates or facts.
 - reasoning: at most 120 words, citing PR ids and field values.
+- Your reasoning must agree with your verdict and suggestedAction. When a legitimate exception applies, the PRs may be approved separately: do not also say they must be consolidated or re-routed. If you believe consolidation is needed, the verdict is SPLIT or LIKELY_SPLIT, not NOT_SPLIT.
 - If the verdict is NOT_SPLIT, related PRs are just the anchor unless you are explaining an exception, and suggestedAction is APPROVE.
 
 Return a result conforming to the output schema:

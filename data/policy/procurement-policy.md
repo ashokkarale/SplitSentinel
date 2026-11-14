@@ -39,7 +39,7 @@ The following are **not** splitting, provided the facts in the requisitions supp
 | RECURRING | Recurring consumables | Routine, periodic purchases (stationery, pantry, cleaning, courier) from a vendor designated as recurring, at normal periodic volumes |
 | BLANKET_PO | Blanket PO call-offs | Each requisition references a valid blanket PO for the same vendor, within its validity dates and approved amount |
 | SEPARATE_PROJECT | Separate requirements | Different projects, cost centres, sites **and** business purposes, each documented on the requisition |
-| EMERGENCY | Documented emergency | Requisitions flagged as emergency with a specific reason (for example equipment breakdown, safety issue) |
+| EMERGENCY | Documented emergency | Requisitions flagged as emergency with a specific reason (for example equipment breakdown, safety issue). They proceed individually without waiting for combined-tier approval; Procurement reviews the combined value after the fact. |
 | STAGGERED_DELIVERY | Vendor-agreed staggered delivery | One requirement delivered in instalments, where the total was approved at the correct tier |
 
 A justification must be **specific** and consistent with the requisition data. General reasons such as "urgent", "needed quickly" or "we always order this way" do not qualify.

@@ -8,6 +8,7 @@ node_modules/
 
 # UiPath local / scratch
 SmokeTest/
+userProfile/
 .uipath/
 *.nupkg
 

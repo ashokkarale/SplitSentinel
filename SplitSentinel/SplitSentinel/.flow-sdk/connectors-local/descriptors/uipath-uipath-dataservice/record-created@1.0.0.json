@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "1",
+  "nodeType": "uipath.connector.event.uipath-uipath-dataservice.record-created",
+  "version": "1.0.0",
+  "category": "trigger.68054",
+  "tags": [
+    "connector",
+    "trigger",
+    "Trigger.Integrated"
+  ],
+  "connector": {
+    "key": "uipath-uipath-dataservice"
+  },
+  "operation": {
+    "name": "CREATED_V3",
+    "objectName": "EntityTriggers_V3",
+    "objectDisplayName": "",
+    "httpMethod": "",
+    "path": "",
+    "subType": "",
+    "supportsStreaming": false,
+    "activityType": "CuratedTrigger",
+    "eventOperation": "CREATED_V3",
+    "eventMode": "webhooks"
+  },
+  "display": {
+    "label": "Record Created",
+    "description": "Triggers when you add a new entity record",
+    "icon": "https://cloud.uipath.com/bdee616a-d8c8-43cd-a9cf-13f5326ccee4/studio_/typecache/icons/98381fa079bbcf73264f551006d6ef7580fb53992f3d9f94361eb5d9e06040cb.svg",
+    "iconBackground": "",
+    "iconBackgroundDark": ""
+  },
+  "runtime": {
+    "bpmnType": "bpmn:StartEvent",
+    "serviceType": "Intsvc.EventTrigger",
+    "activityConfigurationVersion": "v1",
+    "requiresConnection": true,
+    "requiresFolderKey": true,
+    "requiresConnectionForSchema": false
+  },
+  "inputSchema": {
+    "fields": []
+  },
+  "outputSchema": {
+    "fields": [
+      {
+        "name": "Id",
+        "displayName": "ID",
+        "type": "string",
+        "dataType": "string"
+      }
+    ]
+  }
+}

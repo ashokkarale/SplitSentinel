@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1",
+  "bindings": [
+    {
+      "id": "dataFabric",
+      "name": "dataFabric",
+      "resource": "Connection",
+      "resourceKey": "01745482-f6ba-4353-addc-38659df5845c",
+      "default": "01745482-f6ba-4353-addc-38659df5845c",
+      "propertyAttribute": "ConnectionId"
+    },
+    {
+      "id": "shared",
+      "name": "shared",
+      "resource": "Connection",
+      "resourceKey": "179dba0b-3aef-485e-ae12-24aa686ed19f",
+      "default": "179dba0b-3aef-485e-ae12-24aa686ed19f",
+      "propertyAttribute": "FolderKey"
+    },
+    {
+      "id": "gmail",
+      "name": "gmail",
+      "resource": "Connection",
+      "resourceKey": "66dfd117-f846-4b6f-899c-c834852ce1dc",
+      "default": "66dfd117-f846-4b6f-899c-c834852ce1dc",
+      "propertyAttribute": "ConnectionId"
+    }
+  ]
+}

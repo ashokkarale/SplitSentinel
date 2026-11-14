@@ -148,7 +148,7 @@ Organisations enforce an **approval matrix**: purchases above certain amounts ne
 
 ### 4.3 Assets we must create
 
-> Status as of 2026-11-05.
+> Status as of 2026-11-14.
 
 | # | Asset | Section | Status | Where / evidence |
 |---|---|---|---|---|
@@ -158,13 +158,13 @@ Organisations enforce an **approval matrix**: purchases above certain amounts ne
 | D4 | Seed data: ~80 PRs, ~15 vendors, ~20 employees, 3 blanket POs | §9 | ✅ Done | `data/generate-seed.js` → 78 PRs, 16 vendors, 25 employees, 3 blanket POs; all imported, 0 errors; 9 planted scenarios self-checked |
 | D5 | Rule-engine script + unit tests | §10 | ✅ Done | `rules/score.js` + `rules/score.test.js` (15/15 pass) |
 | D6 | Agent: system prompt, input/output schema, evaluation set | §11 | ✅ Done | `agent/system-prompt.md`, `agent/output-schema.json`, `agent/evals/eval-set.json` (19 cases), `agent/evals/run-rule-evals.js` |
-| D7 | Maestro Flow (main) | §12 | ✅ Core done | `SplitSentinel/` solution, Maestro Automate. `check` 0/0, `validate` Valid with no warnings; cloud runs pass (see D11). **Not yet:** Data Fabric event trigger, Gmail notifications |
+| D7 | Maestro Flow (main) | §12 | ✅ Built | 52 nodes, two entry points (manual + Data Fabric `record-created`), what-if mode, Gmail drafts. `check` 0/0, `validate` Valid with no warnings. **Not yet proven live:** the event trigger (needs a deployed solution) and the Gmail draft step (creates drafts in your mailbox) |
 | D8 | Action Center task form(s) | §13 | ✅ Done | Approver review quick form (4 outcomes + comment), proven live: task created, completed, Flow resumed |
-| D9 | Requester justification form / email template | §13 | ⚠️ Built, not run live | Quick form in the Flow (Explain / Consolidate); no seed case has triggered it yet (the agent chose direct review) |
+| D9 | Requester justification form / email template | §13 | ✅ Done | Ran live on T16: requester task → justification → agent re-judged → approver review |
 | D10 | Notification templates (approved, held, consolidated, escalated) | §12 | ✅ Done | `templates/notifications.md` (sending not wired yet, see D7) |
-| D11 | Evaluation results sheet (before/after tuning) | §15 | ⚠️ Partial | `docs/evaluation-results.md`: rule layer 9/9; cloud runs T1, T2, T3, T7, T14 pass. Remaining cases and before/after tuning still to run |
+| D11 | Evaluation results sheet (before/after tuning) | §15 | ✅ Done | `docs/evaluation-results.md`: rule layer 9/9; live runs 10/10; guardrail + failure 2/2 (Flow eval with simulated agent); tuning v1 → v2 → v3 with before/after; T9, T10, T13, T17–T19 not run (reasons documented) |
 | D12 | Architecture diagram | §5 | ✅ Done | `docs/architecture.mmd` (Mermaid) |
-| D13 | Demo video (3–5 min) | §18 | ☐ You | Record after the remaining Flow pieces are in |
+| D13 | Demo video (3–5 min) | §18 | ☐ You | All Flow pieces are in; record using the demo plan in §18 |
 | D14 | README + "How I built it with Claude Code" write-up | §16, §19 | ✅ Done | `README.md`, `docs/claude-code-log.md` |
 
 **Design changes found while building** (also in `AGENTS.md`):

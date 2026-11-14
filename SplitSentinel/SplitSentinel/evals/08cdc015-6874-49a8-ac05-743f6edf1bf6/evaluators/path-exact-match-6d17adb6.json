@@ -1,0 +1,16 @@
+{
+  "version": "1.0",
+  "id": "path-exact-match-6d17adb6",
+  "name": "Path exact match",
+  "description": "Routing path must match the expected decision path",
+  "evaluatorTypeId": "uipath-exact-match",
+  "evaluatorConfig": {
+    "name": "Path exact match",
+    "caseSensitive": false,
+    "negated": false,
+    "targetOutputKey": "path"
+  },
+  "fileName": "path-exact-match-6d17adb6.json",
+  "createdAt": "2026-11-14T03:34:30.089Z",
+  "updatedAt": "2026-11-14T03:34:30.089Z"
+}

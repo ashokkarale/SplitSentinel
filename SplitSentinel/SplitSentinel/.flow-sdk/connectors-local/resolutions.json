@@ -1,0 +1,19 @@
+{
+  "resolutions": {
+    "[\"uipath.connector.event.uipath-uipath-dataservice.record-created\",\"entityScope\",\"displayName\",\"Tenant\"]": {
+      "by": "displayName",
+      "field": "entityScope",
+      "match": "Tenant",
+      "nodeType": "uipath.connector.event.uipath-uipath-dataservice.record-created",
+      "value": "tenant"
+    },
+    "[\"uipath.connector.event.uipath-uipath-dataservice.record-created\",\"tenantEntityName\",\"displayName\",\"PurchaseRequisition\"]": {
+      "by": "displayName",
+      "field": "tenantEntityName",
+      "match": "PurchaseRequisition",
+      "nodeType": "uipath.connector.event.uipath-uipath-dataservice.record-created",
+      "value": "PurchaseRequisition"
+    }
+  },
+  "schemaVersion": "1"
+}

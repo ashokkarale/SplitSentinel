@@ -1,0 +1,43 @@
+{
+  "version": "2.0",
+  "resources": [
+    {
+      "resource": "connection",
+      "key": "66dfd117-f846-4b6f-899c-c834852ce1dc",
+      "id": "connection66dfd117-f846-4b6f-899c-c834852ce1dc",
+      "value": {
+        "ConnectionId": {
+          "defaultValue": "66dfd117-f846-4b6f-899c-c834852ce1dc",
+          "isExpression": false,
+          "displayName": "uipath-google-gmail connection"
+        }
+      },
+      "metadata": {
+        "ActivityName": "notify",
+        "BindingsVersion": "2.2",
+        "DisplayLabel": "uipath-google-gmail connection",
+        "UseConnectionService": "true",
+        "Connector": "uipath-google-gmail"
+      }
+    },
+    {
+      "resource": "connection",
+      "key": "01745482-f6ba-4353-addc-38659df5845c",
+      "id": "connection01745482-f6ba-4353-addc-38659df5845c",
+      "value": {
+        "ConnectionId": {
+          "defaultValue": "01745482-f6ba-4353-addc-38659df5845c",
+          "isExpression": false,
+          "displayName": "uipath-uipath-dataservice connection"
+        }
+      },
+      "metadata": {
+        "ActivityName": "Record Created",
+        "BindingsVersion": "2.2",
+        "DisplayLabel": "uipath-uipath-dataservice connection",
+        "UseConnectionService": "true",
+        "Connector": "uipath-uipath-dataservice"
+      }
+    }
+  ]
+}

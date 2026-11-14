@@ -16,7 +16,14 @@ How SplitSentinel was built with Claude Code (Claude Opus 5.5) using the UiPath 
 | 10 | 2026-11-04 | Zero warnings | Stripped the Node `module.exports` footer when inlining; declared the rules step's output fields | `check` 0/0, `validate` Valid with no warnings |
 | 11 | 2026-11-04 | First cloud run (T1) | `flow debug` on PR-2081 | Faulted at `writeCase`: `decidedAt` was an empty string → always stamp the closing time. Re-run: Completed, Released by rules |
 | 12 | 2026-11-04 | Agent path (T7) | `flow debug` on PR-2052 | Agent: NOT_SPLIT / SEPARATE_PROJECT (0.82), released by the gateway; no corrections needed |
-| 13 | 2026-11-04 | Human path (T2) | `flow debug` on PR-2003; read the Action Center task data; completed it with `uip tasks complete --action Consolidate` | See `docs/evaluation-results.md` |
+| 13 | 2026-11-04 | Human path (T2) | `flow debug` on PR-2003; read the Action Center task data; completed it with `uip tasks complete --action Consolidate` | All 3 PRs consolidated, audit row written |
+| 14 | 2026-11-14 | Remaining live cases | Ran T4, T5, T6, T15, T16; completed review tasks via CLI (Reject on T6, to exercise another branch) | 10/10 live cases pass; T16 triggered the requester-justification loop, so D9 ran live |
+| 15 | 2026-11-14 | Re-runs blocked by idempotency | Rather than delete audit rows, added a **what-if mode** (`whatIf` input): skips idempotency, changes no PR, drafts no email, writes `WHATIF-…` audit rows | Re-runnable evaluations without destroying history |
+| 16 | 2026-11-14 | Event trigger | First tried the preview event (not served by this tenant), then `object:` on `record-created` (refused: curated event), then the right shape: `where` lookups resolved by `registry prepare`. A shared-input warning led to resolving `prId` in one `resolveRun` step for both roots | Two entry points, `check` 0/0, emitted node carries the entity, connection and edges |
+| 17 | 2026-11-14 | Gmail notifications | `registry prepare` for `send-email`; text built per outcome from the templates; `SaveAsDraft: true` so nothing is sent from the user's account without consent | 52-node Flow, Valid, 0 warnings |
+| 18 | 2026-11-14 | Tuning: inconsistent reasoning (T15) | v2 prompt rule "reasoning must agree with verdict": **no effect**. Diagnosis: the policy never said what happens to an emergency purchase's combined value. v3 clarified the policy | v3: consistent reasoning, confidence 0.82 → 0.88; T7 regression unchanged |
+| 19 | 2026-11-14 | T8 disagreement | The agent kept LIKELY_SPLIT after a specific justification, because policy §4 requires the evidence on the requisitions | Relabelled T8 instead of loosening the control; documented why |
+| 20 | 2026-11-14 | Guardrail and failure paths | Flow eval set with Static simulations of `judge` / `judgeRetry`: T12 (agent wrongly clears a score-80 case) and T11 (invalid answer twice) | T12 → guardrail review; T11 → FAILED with the validation errors listed, then human review |
 
 ## Things that surprised us
 

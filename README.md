@@ -59,10 +59,11 @@ Requires a UiPath Automation Cloud tenant with Maestro, Agents, Data Fabric and 
    uip maestro flow compile .flow-sdk/SplitSentinel.flow.ts -o SplitSentinel.flow
    uip maestro flow validate SplitSentinel/SplitSentinel.flow
    ```
-6. Run one case in the cloud (input is the PR id):
+6. Run one case in the cloud (input is the PR id; `whatIf: true` re-checks without changing anything):
    ```bash
-   uip maestro flow debug SplitSentinel --inputs '{"requisitionId":"PR-2003"}'
+   uip maestro flow debug SplitSentinel --inputs '{"requisitionId":"PR-2003","whatIf":false}'
    ```
+   Once deployed, the Flow also starts on its own when a `PurchaseRequisition` record is created (Data Fabric `record-created` event).
 
 ## Scenarios in the seed data
 
@@ -84,4 +85,5 @@ Evaluation results: [`docs/evaluation-results.md`](docs/evaluation-results.md).
 
 - **No SLA timers in the Flow.** Maestro Flow human tasks have no timeout option, so the 24 h / 48 h escalation is not modelled inside the Flow. Configure it in Action Center, or in a Maestro Case wrapper.
 - **Data Fabric reads have no error port.** A failed read faults the run (nothing is released). Empty reference data is held as `Unverified`.
+- **Notifications are Gmail drafts.** The notify step saves a draft (`SaveAsDraft: true`) instead of sending; switch it once real recipient addresses are in place.
 - **Demo-scale reads.** The Flow reads up to 1,000 PRs and filters them in the rule engine; a production version would filter by date on the server.

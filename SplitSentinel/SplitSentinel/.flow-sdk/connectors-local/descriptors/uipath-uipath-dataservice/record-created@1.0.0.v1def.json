@@ -1,0 +1,249 @@
+{
+  "nodeType": "uipath.connector.event.uipath-uipath-dataservice.record-created",
+  "version": "1.0.0",
+  "category": "trigger.68054",
+  "tags": [
+    "connector",
+    "trigger",
+    "Trigger.Integrated"
+  ],
+  "sortOrder": 580,
+  "description": "Triggers when you add a new entity record",
+  "display": {
+    "label": "Record Created",
+    "description": "Triggers when you add a new entity record",
+    "icon": "https://cloud.uipath.com/bdee616a-d8c8-43cd-a9cf-13f5326ccee4/studio_/typecache/icons/98381fa079bbcf73264f551006d6ef7580fb53992f3d9f94361eb5d9e06040cb.svg",
+    "sourceDisplayName": "UiPath Data Fabric",
+    "shape": "circle"
+  },
+  "handleConfiguration": [
+    {
+      "position": "right",
+      "handles": [
+        {
+          "id": "output",
+          "type": "source",
+          "handleType": "output",
+          "showButton": true,
+          "constraints": {
+            "forbiddenTargetCategories": [
+              "trigger"
+            ]
+          }
+        }
+      ],
+      "visible": true
+    }
+  ],
+  "model": {
+    "type": "bpmn:StartEvent",
+    "entryPointId": true,
+    "serviceType": "Intsvc.EventTrigger",
+    "eventDefinition": "bpmn:MessageEventDefinition",
+    "bindings": {
+      "resource": "connection",
+      "resourceKey": "",
+      "values": [
+        {
+          "name": "uipath-uipath-dataservice connection",
+          "propertyAttribute": "ConnectionId"
+        },
+        {
+          "name": "FolderKey",
+          "propertyAttribute": "FolderKey"
+        }
+      ]
+    },
+    "context": [
+      {
+        "name": "connectorKey",
+        "type": "string",
+        "value": "uipath-uipath-dataservice"
+      },
+      {
+        "name": "operation",
+        "value": "CREATED_V3",
+        "type": "string"
+      },
+      {
+        "name": "objectName",
+        "value": "EntityTriggers_V3",
+        "type": "string"
+      },
+      {
+        "name": "method",
+        "type": "string"
+      },
+      {
+        "name": "connection",
+        "type": "string",
+        "value": "<bindings.uipath-uipath-dataservice connection>"
+      },
+      {
+        "name": "folderKey",
+        "type": "string",
+        "value": "<bindings.FolderKey>"
+      },
+      {
+        "name": "activityConfigurationVersion",
+        "type": "string",
+        "value": "v1"
+      },
+      {
+        "name": "metadata",
+        "body": {
+          "telemetryData": {
+            "connectorKey": "uipath-uipath-dataservice",
+            "connectorName": "Record Created"
+          },
+          "inputMetadata": {},
+          "errorState": {
+            "hasError": true
+          }
+        },
+        "type": "json"
+      }
+    ]
+  },
+  "form": {
+    "id": "connector-properties",
+    "title": "Connector configuration",
+    "sections": [
+      {
+        "id": "connector",
+        "title": "Connector",
+        "collapsible": true,
+        "defaultExpanded": true,
+        "fields": [
+          {
+            "label": "",
+            "name": "inputs.detail",
+            "type": "custom",
+            "component": "dap-config",
+            "componentProps": {
+              "connectorDetail": {
+                "type": "Integrated",
+                "packageId": "68054",
+                "svgIconUrl": "icons/98381fa079bbcf73264f551006d6ef7580fb53992f3d9f94361eb5d9e06040cb.svg",
+                "displayName": "Record Created",
+                "assemblyQualifiedName": "UiPath.IntegrationService.Activities.Runtime.Activities.ConnectorTriggerActivity, UiPath.IntegrationService.Activities.Runtime, Version=1.36.0.0, Culture=neutral, PublicKeyToken=null",
+                "description": "Triggers when you add a new entity record",
+                "category": "UiPath Data Fabric.Triggers",
+                "activityColor": "#E56D5C",
+                "configuration": "{\"connectorKey\":\"uipath-uipath-dataservice\",\"objectName\":\"EntityTriggers_V3\",\"activityType\":\"CuratedTrigger\",\"version\":\"1.0.0\",\"eventOperation\":\"CREATED_V3\",\"eventMode\":\"webhooks\",\"supportsStreaming\":false}",
+                "uiPathActivityTypeId": "9d70091c-c6bf-35a9-94b4-1f5d438c22b0",
+                "isExperimental": false,
+                "helpUrlTemplate": "https://docs.uipath.com/{0}/activities/other/latest/integration-service/uipath-uipath-dataservice-Record-Created",
+                "isEnabled": true,
+                "targetPlatform": "CrossPlatform",
+                "isAdvanced": false,
+                "isRestricted": false,
+                "hasWpfOnlyDesigner": false,
+                "tags": [
+                  "Trigger.Integrated"
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "inputDefinition": {},
+  "outputDefinition": {
+    "output": {
+      "type": "object",
+      "description": "The return value of the connector trigger.",
+      "source": "=result.response",
+      "var": "output"
+    }
+  },
+  "toolbarExtensions": {
+    "design": {
+      "actions": [
+        {
+          "id": "change-trigger-type",
+          "icon": "square-mouse-pointer",
+          "label": "Change trigger type"
+        }
+      ]
+    }
+  },
+  "eventMode": "webhooks",
+  "byoaConnection": false,
+  "elementInstanceId": 788118,
+  "eventParameters": {
+    "fields": [
+      {
+        "name": "entityScope",
+        "bucket": "query",
+        "displayName": "Entity Scope",
+        "description": "Select the scope for entity discovery",
+        "required": true,
+        "sortOrder": 1,
+        "reference": {
+          "lookupNames": [
+            "displayName"
+          ],
+          "path": "/v3/entity-scope-options",
+          "objectName": "system",
+          "lookupValue": "value"
+        },
+        "type": "string",
+        "dataType": "string"
+      },
+      {
+        "name": "tenantEntityName",
+        "bucket": "query",
+        "displayName": "Entity",
+        "description": "Select the tenant entity to monitor for new records",
+        "required": false,
+        "sortOrder": 2,
+        "reference": {
+          "lookupNames": [
+            "displayName"
+          ],
+          "path": "/standard-objects-pure-ldo",
+          "objectName": "system",
+          "lookupValue": "name"
+        },
+        "type": "string",
+        "dataType": "string"
+      },
+      {
+        "name": "folderEntityName",
+        "bucket": "query",
+        "displayName": "Entity",
+        "description": "Select the folder entity to monitor for new records",
+        "required": false,
+        "sortOrder": 3,
+        "reference": {
+          "lookupNames": [
+            "displayName"
+          ],
+          "path": "/standard-objects/folder-entities?folderKey={folderEntityName_folderKey}",
+          "objectName": "system",
+          "lookupValue": "name"
+        },
+        "type": "string",
+        "dataType": "string"
+      }
+    ]
+  },
+  "filterFields": {
+    "fields": [
+      {
+        "name": "Id",
+        "displayName": "ID",
+        "type": "string",
+        "dataType": "string"
+      }
+    ]
+  },
+  "isWebhookUrlVisible": false,
+  "supportsErrorHandling": true,
+  "inputDefaults": {},
+  "debug": {
+    "runtime": "bpmnEngine"
+  }
+}
