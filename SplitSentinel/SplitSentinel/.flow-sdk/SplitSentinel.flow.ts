@@ -93,8 +93,11 @@ var requester = employees.filter(function (e) { return e.employeeId === anchor.r
 var vendor = vendors.filter(function (x) { return x.vendorId === anchor.vendorId; })[0] || {};
 var r = scorePrs(anchor, prs, { approvalMatrix: matrix, requester: requester, vendor: vendor, blanketPos: blanketPos });
 var group = prs.filter(function (p) { return r.groupPrIds.indexOf(p.prId) >= 0; });
-var recordIds = {}, amounts = {};
-group.forEach(function (p) { recordIds[p.prId] = p.id; amounts[p.prId] = Number(p.amount); });
+var recordIds = {}, amounts = {}, statuses = {}, caseLinks = {};
+group.forEach(function (p) {
+  recordIds[p.prId] = p.id; amounts[p.prId] = Number(p.amount);
+  statuses[p.prId] = p.status || ''; caseLinks[p.prId] = p.splitCaseId || '';
+});
 var manager = employees.filter(function (e) { return e.employeeId === requester.managerId; })[0] || {};
 var agentInput = {
   anchorPr: strip(anchor),
@@ -125,6 +128,7 @@ return {
   groupRows: groupRows,
   route: r.route, score: r.score, patterns: r.patterns.join(','), signals: JSON.stringify(r.signals),
   groupPrIds: r.groupPrIds, knownPrIds: r.groupPrIds, recordIds: recordIds, amounts: amounts,
+  statuses: statuses, caseLinks: caseLinks,
   anchorRecordId: anchor.id, combinedAmount: r.combinedAmount, combinedTier: r.combinedTier, anchorTier: r.anchorTier,
   requesterName: requester.name || anchor.requesterId, requesterCostCenter: requester.costCenter || anchor.costCenter,
   requesterEmail: requester.email || '',
@@ -136,7 +140,7 @@ return {
 const RULES_RETURNS = {
   route: "string", score: "number", patterns: "string", signals: "string",
   groupPrIds: "array", knownPrIds: "array", recordIds: "object", amounts: "object",
-  groupRows: "array",
+  groupRows: "array", statuses: "object", caseLinks: "object",
   anchorRecordId: "string", combinedAmount: "number", combinedTier: "string", anchorTier: "string",
   requesterName: "string", requesterCostCenter: "string", requesterEmail: "string", managerEmail: "string",
   agentInput: "string", summary: "string", matrix: "array",
@@ -199,20 +203,34 @@ var st = $vars.finalPrStatus;
 var rules = $vars.rules.output;
 var a = $vars.agentResult || {};
 var related = (a.relatedPrIds && a.relatedPrIds.length) ? a.relatedPrIds : rules.groupPrIds;
-var targets = $vars.dryRun ? [] : (st === 'Consolidated' || st === 'Rejected') ? related : [$vars.prId];
-var log = [
-  'rules: score ' + rules.score + ' [' + rules.patterns + '] route ' + rules.route,
-  'agent: ' + (a.verdict || 'NOT_RUN') + (a.corrections ? ' (corrected: ' + a.corrections + ')' : ''),
-  'path: ' + $vars.path,
-  'human: ' + ($vars.humanDecision || 'none'),
-  'final: ' + st + ' -> ' + ($vars.dryRun ? 'what-if run, no PR updated' : targets.join(','))
-].join('\\n');
+var groupWide = st === 'Consolidated' || st === 'Rejected';
+var statuses = rules.statuses || {}, caseLinks = rules.caseLinks || {};
+// Consolidate / Reject apply to the whole group. Otherwise only this PR changes status; the
+// other PRs judged with it keep their status and are linked to this case unless already linked.
+var targets = $vars.dryRun ? [] : related.filter(function (x) {
+  return groupWide || x === $vars.prId || ($vars.humanDecision && !caseLinks[x]);
+}).map(function (x) {
+  return { prId: x, id: rules.recordIds[x], status: (groupWide || x === $vars.prId) ? st : (statuses[x] || st) };
+}).filter(function (t) { return t.id; });
+var log = ['rules: score ' + rules.score + ' [' + rules.patterns + '] route ' + rules.route];
+if ($vars.requesterAnswer) {
+  log.push('agent: ' + ($vars.firstVerdict || 'NOT_RUN') + ' -> asked the requester');
+  log.push('requester: ' + $vars.requesterAnswer + ($vars.justification ? ' (explanation given)' : ''));
+  if ($vars.justification) log.push('agent re-judge: ' + (a.verdict || 'NOT_RUN') + (a.corrections ? ' (corrected: ' + a.corrections + ')' : ''));
+} else {
+  log.push('agent: ' + (a.verdict || 'NOT_RUN') + (a.corrections ? ' (corrected: ' + a.corrections + ')' : ''));
+}
+log.push('path: ' + $vars.path);
+log.push('human: ' + ($vars.humanDecision || 'none') + ($vars.decidedBy ? ' by ' + $vars.decidedBy : ''));
+log.push('final: ' + st + ' -> ' + ($vars.dryRun ? 'what-if run, no PR updated'
+  : targets.map(function (t) { return t.prId + (t.status === st ? '' : ' (linked, stays ' + t.status + ')'); }).join(',')));
+var runLog = log.join('\\n');
 return {
   caseId: ($vars.dryRun ? 'WHATIF-' + $vars.prId + '-' + Date.now() : 'SC-' + $vars.prId),
-  targetRecordIds: targets.map(function (x) { return rules.recordIds[x]; }).filter(function (x) { return x; }),
+  targets: targets.map(function (t) { return { id: t.id, status: t.status }; }),
   relatedPrIds: related.join(','),
   agentVerdict: a.verdict || 'NOT_RUN',
-  runLog: log
+  runLog: runLog
 };
 `;
 
@@ -231,6 +249,12 @@ var related = (a.relatedPrIds && a.relatedPrIds.length ? a.relatedPrIds : rules.
 var others = related.filter(function (x) { return x !== $vars.prId; });
 var approval = tier + ' · ' + roleName(tierRow.approverRole) + (rfq ? ' + RFQ' : '');
 var signals = JSON.parse(rules.signals || '[]');
+// The signals score the rules' group; say so when the agent narrowed or changed it.
+var ruleGroup = rules.groupPrIds || [];
+var sameGroup = ruleGroup.length === related.length && ruleGroup.every(function (x) { return related.indexOf(x) >= 0; });
+var ruleGroupNote = sameGroup ? '' : 'These signals score the group the rules looked at: ' + listIds(ruleGroup)
+  + ' (' + inr(rules.combinedAmount) + '). The AI judged ' + listIds(related) + ' to be the related purchase ('
+  + inr(amount) + '), which is what the table above and the approval tier use.';
 // Shaped to the review app's action-schema.json inputs (SplitSentinelReview).
 return {
   prId: $vars.prId,
@@ -250,6 +274,7 @@ return {
   riskScore: Math.round(Number(rules.score) || 0),
   relatedPrs: (rules.groupRows || []).filter(function (row) { return related.indexOf(row.prId) >= 0; }),
   signals: signals.map(function (s) { return { text: s.detail, points: s.points }; }),
+  ruleGroupNote: ruleGroupNote,
   aiVerdict: a.verdict || 'NOT_RUN',
   aiConfidence: Number(a.confidence) || 0,
   aiException: a.legitException || 'NONE',
@@ -260,6 +285,11 @@ return {
 };
 `;
 
+// Who decided: the app SDK exposes no user, so the case records the Action Center task id
+// (Action Center keeps who completed it). Both apps return taskId as an output.
+const APPROVER_DECIDED_BY = js`'Approver, Action Center task ' + ($vars.approverReview.output.taskId || '?')`;
+const REQUESTER_DECIDED_BY = js`'Requester, Action Center task ' + ($vars.requesterTask.output.taskId || '?')`;
+
 // The review app (coded Action App in this solution): its key and data contract are read
 // from the solution files, so the Flow always matches the app that ships with it.
 const REVIEW_APP = JSON.parse(repo("SplitSentinel/resources/solution_folder/app/codedAction/SplitSentinelReview.json")).resource;
@@ -268,7 +298,7 @@ const REVIEW_CARD_RETURNS = {
   prId: "string", caseRef: "string", requesterName: "string", requesterCostCenter: "string", whatHappened: "string",
   combinedAmount: "number", approvalTier: "string", approverRole: "string", rfqRequired: "boolean",
   anchorTier: "string", anchorApproverRole: "string", riskScore: "number", relatedPrs: "array", signals: "array",
-  aiVerdict: "string", aiConfidence: "number", aiException: "string", aiReasoning: "string", aiCorrections: "string",
+  ruleGroupNote: "string", aiVerdict: "string", aiConfidence: "number", aiException: "string", aiReasoning: "string", aiCorrections: "string",
   requesterJustification: "string", title: "string",
 } as const;
 // Every app input is bound to the review card's field of the same name.
@@ -440,6 +470,10 @@ export default flow("08cdc015-6874-49a8-ac05-743f6edf1bf6")
   .var("justification", types.string, "")
   .var("humanDecision", types.string, "")
   .var("humanComment", types.string, "")
+  // Who decided: the Action Center task id (the app SDK exposes no user; the task records who completed it).
+  .var("decidedBy", types.string, "")
+  .var("firstVerdict", types.string, "")
+  .var("requesterAnswer", types.string, "")
   .stickyNotes(NOTES)
   .layout(LAYOUT)
 
@@ -515,7 +549,7 @@ export default flow("08cdc015-6874-49a8-ac05-743f6edf1bf6")
 
     // 6. Gateway and guardrail.
     .step("gateway", script({ code: gatewayCode(true), returns: { decision: "string", path: "string" } }),
-      { label: "Guardrail", updates: { path: out("gateway", "path") } })
+      { label: "Guardrail", updates: { path: out("gateway", "path"), firstVerdict: js`($vars.agentResult || {}).verdict || ''` } })
     .switch("decision", out("gateway", "decision"), [
       { value: "RELEASE", label: "Cleared",
         body: (b) => b.step("agentRelease", script({ code: 'return "AGENT_RELEASE";' }),
@@ -541,10 +575,11 @@ export default flow("08cdc015-6874-49a8-ac05-743f6edf1bf6")
         .switch("requesterDecision", out("requesterTask", "Action"), [
           { value: ASK_OUTCOMES.merge, label: "Merge my PRs", body: (c) => c
             .step("requesterConsolidates", script({ code: 'return "REQUESTER_CONSOLIDATE";' }),
-              { label: "Merge PRs", updates: { finalPrStatus: lit("Consolidated"), humanDecision: lit("CONSOLIDATE"), path: lit("REQUESTER_CONSOLIDATED"), humanComment: lit("Requester chose to consolidate") } }) },
+              { label: "Merge PRs", updates: { finalPrStatus: lit("Consolidated"), humanDecision: lit("CONSOLIDATE"), path: lit("REQUESTER_CONSOLIDATED"), humanComment: lit("Requester chose to consolidate"),
+                requesterAnswer: lit(ASK_OUTCOMES.merge), decidedBy: REQUESTER_DECIDED_BY } }) },
           { value: ASK_OUTCOMES.explain, label: "Explained", body: (e) => e
             .step("keepJustification", script({ code: "return String($vars.requesterTask.output.justification || '');", returns: "string" }),
-              { label: "Save answer", updates: { justification: out("keepJustification") } })
+              { label: "Save answer", updates: { justification: out("keepJustification"), requesterAnswer: lit(ASK_OUTCOMES.explain) } })
             .step("rejudge", inlineAgent({
               model: MODEL, temperature: 0,
               systemPrompt: SYSTEM_PROMPT,
@@ -560,7 +595,7 @@ export default flow("08cdc015-6874-49a8-ac05-743f6edf1bf6")
         ], (other) => other
           // Fail closed: an answer the Flow doesn't know goes to the approver.
           .step("requesterUnknown", script({ code: "return String($vars.requesterTask.output.Action || '');", returns: "string" }),
-            { label: "Unknown: review", updates: { needsReview: lit(true), path: lit("REQUESTER_UNKNOWN") } }),
+            { label: "Unknown: review", updates: { needsReview: lit(true), path: lit("REQUESTER_UNKNOWN"), requesterAnswer: js`'unknown answer ' + ($vars.requesterTask.output.Action || '')` } }),
         { label: "Requester answer" }) },
     ], (rev) => rev.step("markReview", script({ code: 'return "REVIEW";' }),
       { label: "To review", updates: { needsReview: lit(true) } }),
@@ -590,30 +625,30 @@ export default flow("08cdc015-6874-49a8-ac05-743f6edf1bf6")
     .switch("approverDecision", out("approverReview", "Action"), [
       { value: REVIEW_OUTCOMES.consolidate, label: "Merge PRs", body: (b) => b
         .step("decConsolidate", script({ code: 'return "CONSOLIDATE";' }),
-          { label: "Consolidate", updates: { finalPrStatus: lit("Consolidated"), humanDecision: lit("CONSOLIDATE"), humanComment: out("approverReview", "comment") } }) },
+          { label: "Consolidate", updates: { finalPrStatus: lit("Consolidated"), humanDecision: lit("CONSOLIDATE"), humanComment: out("approverReview", "comment"), decidedBy: APPROVER_DECIDED_BY } }) },
       { value: REVIEW_OUTCOMES.separate, label: "Keep separate", body: (b) => b
         .step("decApproveSeparate", script({ code: 'return "APPROVE_SEPARATE";' }),
-          { label: "Approve", updates: { finalPrStatus: lit("Released"), humanDecision: lit("APPROVE_SEPARATE"), humanComment: out("approverReview", "comment") } }) },
+          { label: "Approve", updates: { finalPrStatus: lit("Released"), humanDecision: lit("APPROVE_SEPARATE"), humanComment: out("approverReview", "comment"), decidedBy: APPROVER_DECIDED_BY } }) },
       { value: REVIEW_OUTCOMES.reject, label: "Reject", body: (b) => b
         .step("decReject", script({ code: 'return "REJECT";' }),
-          { label: "Reject", updates: { finalPrStatus: lit("Rejected"), humanDecision: lit("REJECT"), humanComment: out("approverReview", "comment") } }) },
+          { label: "Reject", updates: { finalPrStatus: lit("Rejected"), humanDecision: lit("REJECT"), humanComment: out("approverReview", "comment"), decidedBy: APPROVER_DECIDED_BY } }) },
       { value: REVIEW_OUTCOMES.notSplit, label: "Not a split", body: (b) => b
         .step("decFalsePositive", script({ code: 'return "FALSE_POSITIVE";' }),
-          { label: "False positive", updates: { finalPrStatus: lit("Released"), humanDecision: lit("FALSE_POSITIVE"), humanComment: out("approverReview", "comment") } }) },
+          { label: "False positive", updates: { finalPrStatus: lit("Released"), humanDecision: lit("FALSE_POSITIVE"), humanComment: out("approverReview", "comment"), decidedBy: APPROVER_DECIDED_BY } }) },
     ], (other) => other
       // Fail closed: an outcome the Flow doesn't know never releases anything.
       .step("decUnknown", script({ code: "return String($vars.approverReview.output.Action || '');", returns: "string" }),
-        { label: "Unknown: hold", updates: { finalPrStatus: lit("OnHold"), humanDecision: lit("UNKNOWN"), humanComment: out("approverReview", "comment") } }),
+        { label: "Unknown: hold", updates: { finalPrStatus: lit("OnHold"), humanDecision: lit("UNKNOWN"), humanComment: out("approverReview", "comment"), decidedBy: APPROVER_DECIDED_BY } }),
     { label: "Decision" }),
     undefined, { label: "Review?" })
 
   // 9. Apply the outcome and write the audit record.
   .step("finalize", script({ code: FINALIZE_CODE, returns: "object" }), { label: "Prepare outcome" })
-  .loop("applyStatus", out("finalize", "targetRecordIds"), (body) => body
+  .loop("applyStatus", out("finalize", "targets"), (body) => body
     .step("setStatus", dataFabricUpdate({
       entity: "PurchaseRequisition",
-      record: { byId: js`$vars.applyStatus.currentItem` },
-      set: { status: v("finalPrStatus"), splitCaseId: out("finalize", "caseId") },
+      record: { byId: js`$vars.applyStatus.currentItem.id` },
+      set: { status: js`$vars.applyStatus.currentItem.status`, splitCaseId: out("finalize", "caseId") },
     }), { label: "Set status" }),
     { label: "Each PR" })
   .step("writeCase", dataFabricCreate({
@@ -634,6 +669,7 @@ export default flow("08cdc015-6874-49a8-ac05-743f6edf1bf6")
       requesterJustification: v("justification"),
       humanDecision: v("humanDecision"),
       humanComment: v("humanComment"),
+      decidedBy: v("decidedBy"),
       decidedAt: js`new Date().toISOString()`,
       finalOutcome: v("finalPrStatus"),
       runLog: out("finalize", "runLog"),

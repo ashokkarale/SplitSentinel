@@ -36,6 +36,7 @@ interface FormData {
   riskScore: number;
   relatedPrs: RelatedPr[];
   signals: Signal[];
+  ruleGroupNote: string;
   aiVerdict: string;
   aiConfidence: number;
   aiException: string;
@@ -44,6 +45,7 @@ interface FormData {
   requesterJustification: string;
   // outputs — reviewer-filled
   comment: string;
+  taskId: string;
 }
 
 const defaultFormData: FormData = {
@@ -61,6 +63,7 @@ const defaultFormData: FormData = {
   riskScore: 0,
   relatedPrs: [],
   signals: [],
+  ruleGroupNote: '',
   aiVerdict: '',
   aiConfidence: 0,
   aiException: '',
@@ -68,6 +71,7 @@ const defaultFormData: FormData = {
   aiCorrections: '',
   requesterJustification: '',
   comment: '',
+  taskId: '',
 };
 
 const isDarkTheme = (theme: Theme): boolean =>
@@ -102,7 +106,8 @@ function Form({ onInitTheme, darkTheme, onToggleTheme }: FormProps) {
       const merged = task.data
         ? { ...defaultFormData, ...(task.data as Partial<FormData>) }
         : defaultFormData;
-      setFormData(merged);
+      // The task id goes back as an output: the case records it as who decided.
+      setFormData({ ...merged, taskId: String(task.taskId ?? '') });
       setIsReadOnly(task.isReadOnly);
       onInitTheme(isDarkTheme(task.theme));
     });
@@ -289,6 +294,7 @@ function Form({ onInitTheme, darkTheme, onToggleTheme }: FormProps) {
               </tfoot>
             </table>
           </div>
+          {formData.ruleGroupNote && <p className="sr-ai__note">{formData.ruleGroupNote}</p>}
         </section>
 
         {/* AI assessment */}

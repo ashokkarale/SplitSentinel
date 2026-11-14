@@ -28,6 +28,7 @@ interface FormData {
   relatedPrs: RelatedPr[];
   // outputs — requester-filled
   justification: string;
+  taskId: string;
 }
 
 const defaultFormData: FormData = {
@@ -41,6 +42,7 @@ const defaultFormData: FormData = {
   rfqRequired: false,
   relatedPrs: [],
   justification: '',
+  taskId: '',
 };
 
 // An explanation has to say something specific to be worth re-checking.
@@ -69,7 +71,8 @@ function Form({ onInitTheme, darkTheme, onToggleTheme }: FormProps) {
       const merged = task.data
         ? { ...defaultFormData, ...(task.data as Partial<FormData>) }
         : defaultFormData;
-      setFormData(merged);
+      // The task id goes back as an output: the case records it as who decided.
+      setFormData({ ...merged, taskId: String(task.taskId ?? '') });
       setIsReadOnly(task.isReadOnly);
       onInitTheme(isDarkTheme(task.theme));
     });
