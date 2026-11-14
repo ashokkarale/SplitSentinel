@@ -85,6 +85,7 @@ Eval set run `74933264-…`: **Path exact match = 1.0 on both data points.** The
 | Agent catches a medium-score split (v1.0.4) | PR-2107 (more laptops for the same team, other vendor), rules score 35 | LIKELY_SPLIT (0.78) → approver AppTask; reviewer Reject → PR-2105 and PR-2107 Rejected |
 | Requester explanation app (v1.0.4) | PR-2109 (same cleaning service and vendor as PR-2108, different site), rules score 70 | Agent asked the requester → **explain AppTask** with all inputs; requester submitted "different sites"; agent re-judged LIKELY_SPLIT (0.82, justification insufficient per policy) → approver AppTask showed the explanation; reviewer Keep separate → PR-2109 Released, `SC-PR-2109` = APPROVE_SEPARATE |
 | Live-test fixes (v1.0.5) | PR-2111 (podcast-studio kit, same requester and vendor as PR-2110; PR-1034 joins the rules' group via P5), rules score 60 | SPLIT (0.95) on PR-2111 + PR-2110; review form showed the note that the rules scored PR-1034 too (₹2,92,000 vs ₹1,91,000); reviewer Keep separate → PR-2111 Released, PR-2110 linked to `SC-PR-2111` with its status kept, PR-1034 untouched; `decidedBy` = "Approver, Action Center task <id>" |
+| Review app, all buttons (v1.0.5) | PR-2113 (10 more licences, same requester and vendor, same day); PR-2115 (UPS batteries, two sites, habitual requester); PR-2117 (two supplier-audit trips) | PR-2113: SPLIT → **Merge PRs** → PR-2112 and PR-2113 Consolidated. PR-2115: LIKELY_SPLIT (P7 history) → **Not a split** → Released, PR-2114 linked. PR-2117: LIKELY_SPLIT (P3) → Keep separate → both Released. `decidedBy` recorded on all three |
 | Upgrade to v1.0.1 | `deploy upgrade` to the relaid-out version; inserted PR-2093 | Upgrade Active; trigger fired on v1.0.1, `SC-PR-2093` written, PR-2093 → Released |
 
 ## 7. Not run
@@ -94,3 +95,4 @@ Eval set run `74933264-…`: **Path exact match = 1.0 on both data points.** The
 | T9, T17–T19 | Further justification variants; the loop is proven by T16 + T8, and each extra run costs an agent call and a human task |
 | T10 | A Data Fabric outage can't be simulated (read nodes have no error port and aren't simulatable components); by design a failed read faults the run and nothing is released |
 | T13 | Flow human tasks have no timeout; SLA escalation is an Action Center setting |
+| Explain app "Merge my PRs" (live) | Only reachable when the agent chooses ASK_REQUESTER; it did so in 1 of 5 borderline live cases (PR-2109, answered with Submit explanation). The button's step only sets Consolidated, then uses the same status loop proven by Merge PRs |

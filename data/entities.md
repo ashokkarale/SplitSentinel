@@ -105,6 +105,9 @@ Types follow the Data Fabric UI-safe set: `DECIMAL` (precision 0 for whole numbe
 | PR-2107 | Follow-up to PR-2105; LIKELY_SPLIT → approver Rejected PR-2105 and PR-2107 |
 | PR-2108, PR-2109 | Explain-app test on v1.0.4: requester explained, agent re-judged, approver kept them separate (Released) |
 | PR-2110, PR-2111 | v1.0.5 fix test: review note for the rules' wider group, decidedBy, linked PRs on Keep separate |
+| PR-2112, PR-2113 | Review app Merge PRs test (both Consolidated) |
+| PR-2114, PR-2115 | Review app Not a split test (PR-2115 Released, PR-2114 linked) |
+| PR-2116, PR-2117 | Mixed travel case; agent went to the approver (Keep separate) |
 
 ## Loading seed data
 
