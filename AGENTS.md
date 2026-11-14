@@ -97,6 +97,7 @@ Use `uip` CLI commands, not hand-written REST calls.
 │   ├── generate-seed.js
 │   ├── seed/*.csv
 │   └── policy/procurement-policy.md
+├── dummy-erp/                      # "Open ERP": separate Coded Web App that creates PRs (form + CSV); NOT in the solution
 ├── templates/notifications.md
 └── docs/
     ├── architecture.mmd
