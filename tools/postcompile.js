@@ -7,7 +7,13 @@
 // flag but also replaces the hand-authored layout. This sets the flag on exactly the nodes
 // that are the source of an `error` edge — the fix the validator names — and nothing else.
 
+// It also gives every human-task form a content-derived `schemaId`. Compile derives the id from
+// the flow and step ids only, so it stays the same when a form's fields or buttons change, and
+// Action Center keeps rendering the form it registered first under that id (old fields, old
+// buttons, new data). Hashing the fields and outcomes gives each form version its own id.
+
 const fs = require('fs');
+const crypto = require('crypto');
 
 const file = process.argv[2];
 if (!file) {
@@ -30,5 +36,29 @@ for (const node of flow.nodes) {
   }
 }
 
-if (fixed.length) fs.writeFileSync(file, bom + JSON.stringify(flow, null, 2) + '\n');
-console.log(JSON.stringify({ errorHandlingEnabledSet: fixed, alreadySet: [...needsFlag].filter((id) => !fixed.includes(id)) }));
+// RFC 4122 name-based (SHA-1, version 5 style) UUID from a string.
+function contentUuid(text) {
+  const h = crypto.createHash('sha1').update(text).digest();
+  h[6] = (h[6] & 0x0f) | 0x50;
+  h[8] = (h[8] & 0x3f) | 0x80;
+  const x = h.subarray(0, 16).toString('hex');
+  return `${x.slice(0, 8)}-${x.slice(8, 12)}-${x.slice(12, 16)}-${x.slice(16, 20)}-${x.slice(20, 32)}`;
+}
+
+const reschemed = [];
+for (const node of flow.nodes) {
+  const schema = node.inputs && node.inputs.schema;
+  if (!String(node.type).startsWith('uipath.human-in-the-loop') || !schema || !schema.schemaId) continue;
+  const id = contentUuid(`${flow.id}/${node.id}/${JSON.stringify({ fields: schema.fields, outcomes: schema.outcomes })}`);
+  if (schema.schemaId !== id) {
+    schema.schemaId = id;
+    reschemed.push(node.id);
+  }
+}
+
+if (fixed.length || reschemed.length) fs.writeFileSync(file, bom + JSON.stringify(flow, null, 2) + '\n');
+console.log(JSON.stringify({
+  errorHandlingEnabledSet: fixed,
+  alreadySet: [...needsFlag].filter((id) => !fixed.includes(id)),
+  formSchemaIdUpdated: reschemed,
+}));

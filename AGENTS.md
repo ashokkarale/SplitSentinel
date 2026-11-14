@@ -127,7 +127,7 @@ uip maestro flow init SplitSentinel --automate --sdk-source
 uip maestro flow check .flow-sdk/SplitSentinel.flow.ts --source --output json
 uip maestro flow compile .flow-sdk/SplitSentinel.flow.ts -o SplitSentinel.flow --output json
 # from the repo root
-node tools/postcompile.js SplitSentinel/SplitSentinel/SplitSentinel.flow       # sets errorHandlingEnabled on error-edge sources
+node tools/postcompile.js SplitSentinel/SplitSentinel/SplitSentinel.flow       # errorHandlingEnabled + content-based form schemaIds
 # in SplitSentinel/
 uip maestro flow validate "SplitSentinel/SplitSentinel.flow" --output json      # must be Data.Status = "Valid"
 ```
@@ -205,6 +205,13 @@ Eval set **"Guardrail and failures"** (project assets under the Flow project) us
 - Branch arms carry edge labels with `.label('…')`; switch cases use `label` on the case. Human-task (`stepSwitch`) arms can't take one — the outcome name already labels the exit.
 - Canvas annotations are the `NOTES` sticky notes (`.stickyNotes(NOTES)`), one per section. They are inert.
 - Layout (`LAYOUT`, via `.layout(LAYOUT)`): main path on y=320 with 240 px columns; release outcomes in lanes above (pinned edge routes drop them into `reviewNeeded`); retry / requester / approver paths in lanes below; terminal ends in the bottom lane. Children of the loop container are positioned relative to it. Keep labels to 1–3 words so they fit under a 96 px node. After any layout change, check that no node, label area or note overlaps and that no edge crosses an unrelated node.
+
+### Action Center forms
+- Form text is built in script steps (`reviewCard`, `askCard`) using `FORMAT_FNS` (₹ Indian grouping, short dates, role names; the script runtime has no `Intl`).
+- Every shown text field uses `controlType: 'textarea'` so nothing is cut off; key figures sit side by side with `colSpan: 4`. The card width is fixed by Action Center (no SDK setting), so keep texts short; the requester's explanation is hidden by a `visible: false` rule when empty.
+- Quick-form outcomes can't carry tooltips or descriptions (an outcome is only a name). Each form therefore ends with a read-only "What each button does" field just above the buttons. Real tooltips would need a coded Action App (`hitl({ variant: 'action-app' })`).
+- Outcome names are the routing values: change them only through `REVIEW_OUTCOMES` / `ASK_OUTCOMES`. RFQ wording comes from the approval matrix, never from the agent.
+- **Form changes need a new `schemaId`.** Compile derives a form's `schemaId` from the flow and step ids only; Action Center keeps rendering the form first registered under that id (old fields and buttons over new data, and old button names then match no route). `tools/postcompile.js` re-derives the id from the form's fields and outcomes, so always run it after compile.
 
 ### Gotchas found while building
 - A `shared` input variable must not have the same name as the input (`SHARED_INPUT_TARGET_IS_INPUT`).
@@ -345,9 +352,9 @@ Use PRs from the last **30 days**, with status not Draft or Rejected, excluding 
 | 5 | Agent judgement | §7 |
 | 6 | Validate | §7 post-validation (one retry, then FAILED) |
 | 7 | Gateway | See the gateway table below |
-| 8a | Requester justification | Quick-form task, outcomes `Explain` / `Consolidate`, output field `justification`. (No timeout available in Flow) |
+| 8a | Requester justification | Quick-form task, outcomes `Submit explanation` / `Merge my PRs` (`ASK_OUTCOMES`), output field `justification`. (No timeout available in Flow) |
 | 8b | Agent re-evaluation | Same agent, with `requesterJustification` set → validate → gateway (no second justification round) |
-| 8c | Approver review | Quick-form task titled with the **combined tier**. Outcomes `Consolidate`, `Approve separately`, `Reject`, `False positive`; output field `comment`. SLA/escalation is configured in Action Center (Flow has no task timeout) |
+| 8c | Approver review | Quick-form task titled with the amount and approver. Outcomes `Merge PRs`, `Keep separate`, `Reject`, `Not a split` (`REVIEW_OUTCOMES`; short so all four fit on one row of the fixed-width card); required output field `comment`. SLA/escalation is configured in Action Center (Flow has no task timeout) |
 | 9C | Consolidate | Related PRs → Consolidated; route for the correct-tier approval |
 | 9R | Release | PR → Released |
 | 9X | Reject | PR(s) → Rejected |

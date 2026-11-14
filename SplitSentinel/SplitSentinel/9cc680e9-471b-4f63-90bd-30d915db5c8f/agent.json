@@ -5,15 +5,15 @@
     "maxTokens": 16384,
     "temperature": 0,
     "engine": "basic-v2",
-    "maxIterations": 25,
     "mode": "standard"
   },
+  "projectId": "9cc680e9-471b-4f63-90bd-30d915db5c8f",
+  "id": "9cc680e9-471b-4f63-90bd-30d915db5c8f",
+  "name": "rejudge",
   "inputSchema": {
     "type": "object",
     "properties": {
-      "rules__output__agentInput": {
-        "type": "string"
-      },
+      "rules__output__agentInput": {},
       "justification": {
         "type": "string"
       }
@@ -29,12 +29,10 @@
         "type": "number"
       },
       "patterns": {
-        "type": "array",
-        "items": {}
+        "type": "array"
       },
       "relatedPrIds": {
-        "type": "array",
-        "items": {}
+        "type": "array"
       },
       "combinedAmount": {
         "type": "number"
@@ -54,7 +52,19 @@
       "suggestedAction": {
         "type": "string"
       }
-    }
+    },
+    "required": [
+      "verdict",
+      "confidence",
+      "patterns",
+      "relatedPrIds",
+      "combinedAmount",
+      "requiredApprovalTier",
+      "competitiveBidRequired",
+      "legitException",
+      "reasoning",
+      "suggestedAction"
+    ]
   },
   "metadata": {
     "storageVersion": "50.0.0",
@@ -96,8 +106,5 @@
         }
       ]
     }
-  ],
-  "projectId": "9cc680e9-471b-4f63-90bd-30d915db5c8f",
-  "id": "9cc680e9-471b-4f63-90bd-30d915db5c8f",
-  "name": "Agent re-judge"
+  ]
 }

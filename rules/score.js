@@ -54,6 +54,12 @@ function ceilingRatio(amount, matrix, requesterLimit) {
   return best;
 }
 
+// Indian digit grouping for signal text (12,34,567). Named apart from the Flow's own display helpers.
+function groupInr(n) {
+  var s = String(Math.round(num(n))), last3 = s.slice(-3), rest = s.slice(0, -3);
+  return 'INR ' + (rest ? rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' : '') + last3;
+}
+
 function tokens(text) {
   return String(text || '').toLowerCase().split(/[^a-z0-9]+/).filter(function (w) {
     return w.length > 2 && !/^\d+$/.test(w) && STOPWORDS.indexOf(w) < 0;
@@ -128,42 +134,42 @@ function scorePrs(anchor, prs, ctx) {
     if (p5.length) add('P5', 15, 'Same vendor and cost centre, different requester: ' + p5.map(function (p) { return p.prId; }).join(', '));
 
     if (crossesTier || exceedsRequesterLimit) {
-      add('TIER', 20, 'Combined INR ' + combined + ' needs ' + (combinedTier.tier ? combinedTier.tier.tierId : '?')
-        + (crossesTier ? ' (anchor alone: ' + (anchorTier.tier ? anchorTier.tier.tierId : '?') + ')' : '')
-        + (exceedsRequesterLimit ? '; exceeds requester limit INR ' + requesterLimit : ''));
+      add('TIER', 20, 'Combined ' + groupInr(combined) + ' needs ' + (combinedTier.tier ? combinedTier.tier.tierId : '?')
+        + (crossesTier ? ' (this PR alone: ' + (anchorTier.tier ? anchorTier.tier.tierId : '?') + ')' : '')
+        + (exceedsRequesterLimit ? '; over the requester\'s ' + groupInr(requesterLimit) + ' limit' : ''));
     }
 
     var nearAll = group.every(function (p) { return ceilingRatio(num(p.amount), matrix, requesterLimit) >= NEAR_LIMIT_MIN; });
-    if (nearAll) add('P2', 15, 'Every PR is within 85-100% of a threshold');
+    if (nearAll) add('P2', 15, 'Each PR sits just under an approval limit (85-100% of it)');
 
     var times = group.map(function (p) { return ts(p.createdAt); });
     if (Math.max.apply(null, times) - Math.min.apply(null, times) <= BURST_HOURS * 3600000) {
-      add('P6', 10, 'All PRs raised within 72 hours');
+      add('P6', 10, 'All raised within 72 hours of each other');
     }
 
     var similar = candidates.every(function (p) { return jaccard(p.description, anchor.description) >= SIMILARITY_MIN; });
-    if (similar) add('P3', 10, 'Near-identical item descriptions');
+    if (similar) add('P3', 10, 'Almost identical item descriptions');
 
     var sameProject = anchor.projectCode && group.every(function (p) { return sameText(p.projectCode, anchor.projectCode); });
-    if (sameProject) add('PROJ', 10, 'All PRs on project ' + anchor.projectCode);
+    if (sameProject) add('PROJ', 10, 'All for the same project, ' + anchor.projectCode);
 
     var habit = prior.filter(function (p) {
       return sameText(p.requesterId, anchor.requesterId) && ceilingRatio(num(p.amount), matrix, requesterLimit) >= HABIT_MIN;
     });
-    if (habit.length >= 3) add('P7', 10, habit.length + ' PRs in 90 days at 90-100% of a threshold');
+    if (habit.length >= 3) add('P7', 10, 'The requester raised ' + habit.length + ' PRs in the last 90 days just under an approval limit');
 
     if (vendor.isRecurring === true || String(vendor.isRecurring).toLowerCase() === 'true') {
-      add('X_RECURRING', -20, 'Vendor ' + (vendor.name || anchor.vendorId) + ' is a recurring-spend vendor');
+      add('X_RECURRING', -20, (vendor.name || anchor.vendorId) + ' is a recurring-spend vendor (lowers the score)');
     }
 
     var blanketRef = anchor.blanketPoRef;
     var allBlanket = blanketRef && group.every(function (p) {
       return sameText(p.blanketPoRef, blanketRef) && validBlanket(blanketRef, p.vendorId, ts(p.createdAt), ctx.blanketPos);
     });
-    if (allBlanket) add('X_BLANKET', -30, 'All PRs call off valid blanket PO ' + blanketRef);
+    if (allBlanket) add('X_BLANKET', -30, 'All are call-offs against valid blanket PO ' + blanketRef + ' (lowers the score)');
 
     var allEmergency = group.every(function (p) { return p.isEmergency === true || String(p.isEmergency).toLowerCase() === 'true'; });
-    if (allEmergency) add('X_EMERGENCY', -10, 'All PRs flagged emergency');
+    if (allEmergency) add('X_EMERGENCY', -10, 'All are flagged as emergencies (lowers the score)');
   }
 
   var total = signals.reduce(function (s, x) { return s + x.points; }, 0);

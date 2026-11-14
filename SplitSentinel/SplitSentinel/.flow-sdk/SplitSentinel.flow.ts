@@ -31,6 +31,27 @@ const AGENT_RETURNS = {
   suggestedAction: "string",
 } as const;
 
+// Display helpers shared by the form scripts. The Flow script runtime has no Intl,
+// so Indian digit grouping (₹5,20,000) and short dates are done by hand.
+const FORMAT_FNS = `
+function inr(n) {
+  var s = String(Math.round(Number(n) || 0)), last3 = s.slice(-3), rest = s.slice(0, -3);
+  return '₹' + (rest ? rest.replace(/\\B(?=(\\d{2})+(?!\\d))/g, ',') + ',' : '') + last3;
+}
+function shortDate(iso) {
+  var m = String(iso || '').match(/^(\\d{4})-(\\d{2})-(\\d{2})/);
+  if (!m) return String(iso || '');
+  return Number(m[3]) + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(m[2]) - 1] + ' ' + m[1];
+}
+function roleName(r) {
+  return { LineManager: 'Line Manager', DeptHead: 'Department Head', CFO: 'CFO', CFOCommittee: 'CFO + Procurement Committee' }[r] || r || 'approver';
+}
+function listIds(ids) {
+  ids = ids || [];
+  return ids.length < 2 ? ids.join('') : ids.slice(0, -1).join(', ') + ' and ' + ids[ids.length - 1];
+}
+`;
+
 // Builds the rule-engine script: normalise Data Fabric rows, score the anchor PR, and
 // prepare everything later steps need (agent payload, record ids, amounts).
 const RULES_CODE = `
@@ -89,14 +110,18 @@ var agentInput = {
   blanketPos: blanketPos.map(function (b) { return { blanketPoId: b.blanketPoId, vendorId: b.vendorId,
     validFrom: b.validFrom, validTo: b.validTo, approvedAmount: b.approvedAmount }; })
 };
-var summary = group.map(function (p) {
-  return p.prId + ' | ' + String(p.createdAt).slice(0, 10) + ' | ' + p.vendorId + ' | ' + p.description + ' | INR ' + Number(p.amount);
+${FORMAT_FNS}
+var summary = group.slice().sort(function (x, y) { return Date.parse(x.createdAt) - Date.parse(y.createdAt); }).map(function (p) {
+  var vn = (vendors.filter(function (x) { return x.vendorId === p.vendorId; })[0] || {}).name || p.vendorId;
+  return '• ' + p.prId + (p.prId === prId ? ' (this PR)' : '') + '  ·  ' + shortDate(p.createdAt) + '  ·  ' + vn + '\\n   '
+    + p.description + '  ·  ' + inr(p.amount);
 }).join('\\n');
 return {
   route: r.route, score: r.score, patterns: r.patterns.join(','), signals: JSON.stringify(r.signals),
   groupPrIds: r.groupPrIds, knownPrIds: r.groupPrIds, recordIds: recordIds, amounts: amounts,
-  anchorRecordId: anchor.id, combinedAmount: r.combinedAmount, combinedTier: r.combinedTier,
-  requesterName: requester.name || anchor.requesterId, requesterEmail: requester.email || '',
+  anchorRecordId: anchor.id, combinedAmount: r.combinedAmount, combinedTier: r.combinedTier, anchorTier: r.anchorTier,
+  requesterName: requester.name || anchor.requesterId, requesterCostCenter: requester.costCenter || anchor.costCenter,
+  requesterEmail: requester.email || '',
   managerEmail: manager.email || '', agentInput: JSON.stringify(agentInput), summary: summary,
   matrix: agentInput.approvalMatrix
 };
@@ -105,8 +130,8 @@ return {
 const RULES_RETURNS = {
   route: "string", score: "number", patterns: "string", signals: "string",
   groupPrIds: "array", knownPrIds: "array", recordIds: "object", amounts: "object",
-  anchorRecordId: "string", combinedAmount: "number", combinedTier: "string",
-  requesterName: "string", requesterEmail: "string", managerEmail: "string",
+  anchorRecordId: "string", combinedAmount: "number", combinedTier: "string", anchorTier: "string",
+  requesterName: "string", requesterCostCenter: "string", requesterEmail: "string", managerEmail: "string",
   agentInput: "string", summary: "string", matrix: "array",
 } as const;
 
@@ -186,27 +211,56 @@ return {
 
 // Form text is computed in a script step: human-task fields bind to variable paths only.
 const REVIEW_CARD_CODE = `
+${FORMAT_FNS}
 var a = $vars.agentResult || {};
 var rules = $vars.rules.output;
 var amount = a.combinedAmount || rules.combinedAmount;
 var tier = a.requiredApprovalTier || rules.combinedTier;
 var tierRow = (rules.matrix || []).filter(function (t) { return t.tierId === tier; })[0] || {};
+var anchorRow = (rules.matrix || []).filter(function (t) { return t.tierId === rules.anchorTier; })[0] || {};
+// RFQ comes from the approval matrix, never from the agent's answer.
+var rfq = tierRow.rfqRequired === true || String(tierRow.rfqRequired) === 'true';
+var related = (a.relatedPrIds && a.relatedPrIds.length ? a.relatedPrIds : rules.groupPrIds);
+var others = related.filter(function (x) { return x !== $vars.prId; });
+var approval = tier + ' · ' + roleName(tierRow.approverRole) + (rfq ? ' + RFQ' : '');
+var band = rules.score >= 60 ? 'high' : rules.score >= 30 ? 'medium' : 'low';
+var verdicts = { SPLIT: 'Split: one purchase broken into several PRs', LIKELY_SPLIT: 'Likely split', NOT_SPLIT: 'Not a split',
+  FAILED: 'No usable AI answer: decide from the rule evidence above' };
+var signals = JSON.parse(rules.signals || '[]');
 return {
-  caseSummary: 'PR ' + $vars.prId + ' (' + rules.requesterName + ') is grouped with ' + (a.relatedPrIds || rules.groupPrIds).join(', ')
-    + '. Combined INR ' + amount + ' needs tier ' + tier + ' approval (' + (tierRow.approverRole || '?') + ')'
-    + (a.competitiveBidRequired ? ' and a competitive bid (RFQ).' : '.'),
-  ruleEvidence: 'Score ' + rules.score + ': ' + JSON.parse(rules.signals).map(function (s) { return s.code + ' ' + (s.points > 0 ? '+' : '') + s.points + ' ' + s.detail; }).join('; '),
-  agentAssessment: (a.verdict || 'NOT_RUN') + ' (' + (a.legitException || 'NONE') + ', confidence ' + (a.confidence || 0) + '): ' + (a.reasoning || '')
-    + (a.corrections ? ' [corrected: ' + a.corrections + ']' : ''),
-  requesterJustification: $vars.justification || 'none',
-  title: 'SplitSentinel: possible split, PR ' + $vars.prId + ' (' + tier + ' approval)'
+  whatHappened: rules.requesterName + ' (' + rules.requesterCostCenter + ') raised ' + $vars.prId
+    + (others.length ? '. Together with ' + listIds(others) + ' it comes to ' + inr(amount) : ' for ' + inr(amount))
+    + ', which needs ' + roleName(tierRow.approverRole) + ' approval (' + tier + ')' + (rfq ? ' and a competitive bid (RFQ)' : '')
+    + (rules.anchorTier && rules.anchorTier !== tier ? '. On its own, the PR only needed ' + roleName(anchorRow.approverRole) + ' approval (' + rules.anchorTier + ').' : '.'),
+  combined: inr(amount),
+  approval: approval,
+  risk: rules.score + ' / 100 (' + band + ')',
+  whyFlagged: signals.length ? signals.map(function (s) { return (s.points > 0 ? '• ' : '– ') + s.detail + '  (' + (s.points > 0 ? '+' : '') + s.points + ')'; }).join('\\n') : 'No rule signals.',
+  aiView: (verdicts[a.verdict] || 'Not assessed') + (a.verdict && a.verdict !== 'FAILED' ? ', ' + Math.round((Number(a.confidence) || 0) * 100) + '% confident' : '')
+    + (a.legitException && a.legitException !== 'NONE' ? '\\nException claimed: ' + a.legitException.replace(/_/g, ' ').toLowerCase() : '')
+    + '\\n\\n' + (a.reasoning || '') + (a.corrections ? '\\n\\n(Checked against the data and corrected: ' + a.corrections + ')' : ''),
+  justification: $vars.justification || '',
+  guide: 'Merge PRs: one ' + inr(amount) + ' requirement, sent to ' + roleName(tierRow.approverRole) + (rfq ? ' with an RFQ' : '') + '.\\n'
+    + 'Keep separate: release the PRs as raised.\\n'
+    + 'Reject: reject all of them; the requester is told why.\\n'
+    + 'Not a split: release them and log a false alarm.',
+  title: 'Possible split: ' + $vars.prId + ' · ' + inr(amount) + ' needs ' + roleName(tierRow.approverRole)
 };
 `;
 
 const ASK_CARD_CODE = `
+${FORMAT_FNS}
 var a = $vars.agentResult || {};
-return { caseSummary: 'Your requisitions ' + (a.relatedPrIds || []).join(', ') + ' look like one requirement (combined INR '
-  + a.combinedAmount + ', tier ' + a.requiredApprovalTier + '). Explain why they are separate requirements, or choose Consolidate.' };
+var rules = $vars.rules.output;
+var tierRow = (rules.matrix || []).filter(function (t) { return t.tierId === a.requiredApprovalTier; })[0] || {};
+var first = String(rules.requesterName || '').split(' ')[0] || 'there';
+return {
+  message: 'Hi ' + first + ', your requisitions ' + listIds(a.relatedPrIds || []) + ' look like parts of one purchase ('
+    + inr(a.combinedAmount) + ' together). Together they need ' + roleName(tierRow.approverRole) + ' approval (' + a.requiredApprovalTier + ').',
+  guide: 'Submit explanation: they are separate needs; say why below (project, site, purpose or budget). "Urgent" does not count.\\n'
+    + 'Merge my PRs: they are one purchase; combine them and send for the right approval.',
+  title: 'Please explain: ' + $vars.prId + ' may be a split purchase'
+};
 `;
 
 // Notification text per outcome (templates/notifications.md). Saved as a Gmail draft.
@@ -240,14 +294,35 @@ if (st === 'Consolidated') {
 return { to: rules.requesterEmail, cc: (st === 'Consolidated' || st === 'Rejected') ? rules.managerEmail : '', subject: 'SplitSentinel: ' + subject, body: body };
 `;
 
+// Approver form: summary first, key figures side by side, details as multi-line text, then the
+// button guide right above the buttons (quick-form outcomes can't carry tooltips).
 const reviewFields = [
-  { id: "caseSummary", label: "Possible split", type: "string", direction: "input" as const, value: out("reviewCard", "caseSummary") },
-  { id: "relatedPrs", label: "Related PRs (id | date | vendor | item | amount)", type: "string", direction: "input" as const, value: out("rules", "summary") },
-  { id: "ruleEvidence", label: "Rule evidence", type: "string", direction: "input" as const, value: out("reviewCard", "ruleEvidence") },
-  { id: "agentAssessment", label: "Agent assessment", type: "string", direction: "input" as const, value: out("reviewCard", "agentAssessment") },
-  { id: "requesterJustification", label: "Requester justification", type: "string", direction: "input" as const, value: out("reviewCard", "requesterJustification") },
-  { id: "comment", label: "Decision comment", type: "string", direction: "output" as const },
+  { id: "whatHappened", label: "What happened", type: "string", direction: "input" as const, controlType: "textarea" as const,
+    value: out("reviewCard", "whatHappened") },
+  { id: "combined", label: "Combined amount", type: "string", direction: "input" as const, colSpan: 4, value: out("reviewCard", "combined") },
+  { id: "approval", label: "Approval needed", type: "string", direction: "input" as const, colSpan: 4, value: out("reviewCard", "approval") },
+  { id: "risk", label: "Risk score", type: "string", direction: "input" as const, colSpan: 4, value: out("reviewCard", "risk") },
+  { id: "relatedPrs", label: "The purchase requisitions", type: "string", direction: "input" as const, controlType: "textarea" as const,
+    value: out("rules", "summary") },
+  { id: "whyFlagged", label: "Why it was flagged", type: "string", direction: "input" as const, controlType: "textarea" as const,
+    value: out("reviewCard", "whyFlagged") },
+  { id: "aiView", label: "AI assessment", type: "string", direction: "input" as const, controlType: "textarea" as const,
+    value: out("reviewCard", "aiView") },
+  // Hidden when the requester was not asked.
+  { id: "justification", label: "Requester's explanation", type: "string", direction: "input" as const, controlType: "textarea" as const,
+    value: out("reviewCard", "justification"),
+    rules: [{ id: "hideWhenEmpty", conditions: [{ when: "justification", is: "" }], effects: { visible: false } }] },
+  { id: "guide", label: "What each button does", type: "string", direction: "input" as const, controlType: "textarea" as const,
+    value: out("reviewCard", "guide") },
+  { id: "comment", label: "Your comment (required; shared with the requester)", type: "string", direction: "output" as const,
+    controlType: "textarea" as const,
+    required: true, requiredMessage: "Add a short reason. It goes into the audit record and the requester's email." },
 ];
+
+// Button names double as the routing values below; keep them short so they fit on one line.
+// The form card has a fixed width (no setting for it), so all four must fit on one row.
+const REVIEW_OUTCOMES = { consolidate: "Merge PRs", separate: "Keep separate", reject: "Reject", notSplit: "Not a split" };
+const ASK_OUTCOMES = { explain: "Submit explanation", merge: "Merge my PRs" };
 
 // Canvas annotations. Sticky notes are inert: the platform skips them during validation
 // and conversion, so they document the diagram without changing behaviour.
@@ -422,24 +497,28 @@ export default flow("08cdc015-6874-49a8-ac05-743f6edf1bf6")
           { label: "Agent cleared", updates: { finalPrStatus: lit("Released") } }) },
       { value: "ASK_REQUESTER", label: "Ask requester", body: (b) => b
         // 7. Requester justification, then one re-evaluation (no second ask).
-        .step("askCard", script({ code: ASK_CARD_CODE, returns: { caseSummary: "string" } }), { label: "Draft question" })
+        .step("askCard", script({ code: ASK_CARD_CODE, returns: { message: "string", guide: "string", title: "string" } }), { label: "Draft question" })
         .stepSwitch("requesterTask", hitl({
           variant: "quick-form",
-          title: tmpl`SplitSentinel: explain PR ${v("prId")}`,
+          title: out("askCard", "title"),
           priority: "Medium",
           labels: "SplitSentinel,Justification",
           fields: [
-            { id: "caseSummary", label: "Why you are seeing this", type: "string", direction: "input",
-              value: out("askCard", "caseSummary") },
-            { id: "relatedPrs", label: "Related PRs", type: "string", direction: "input", value: out("rules", "summary") },
-            { id: "justification", label: "Your explanation", type: "string", direction: "output" },
+            { id: "message", label: "Why you are seeing this", type: "string", direction: "input", controlType: "textarea",
+              value: out("askCard", "message") },
+            { id: "relatedPrs", label: "Your requisitions", type: "string", direction: "input", controlType: "textarea",
+              value: out("rules", "summary") },
+            { id: "guide", label: "What each button does", type: "string", direction: "input", controlType: "textarea",
+              value: out("askCard", "guide") },
+            { id: "justification", label: "Your explanation (for Submit explanation)", type: "string", direction: "output",
+              controlType: "textarea" },
           ],
-          outcomes: ["Explain", "Consolidate"],
+          outcomes: [ASK_OUTCOMES.explain, ASK_OUTCOMES.merge],
         }), [
-          { value: "Consolidate", body: (c) => c
+          { value: ASK_OUTCOMES.merge, body: (c) => c
             .step("requesterConsolidates", script({ code: 'return "REQUESTER_CONSOLIDATE";' }),
               { label: "Merge PRs", updates: { finalPrStatus: lit("Consolidated"), humanDecision: lit("CONSOLIDATE"), path: lit("REQUESTER_CONSOLIDATED"), humanComment: lit("Requester chose to consolidate") } }) },
-          { value: "Explain", body: (e) => e
+          { value: ASK_OUTCOMES.explain, body: (e) => e
             .step("keepJustification", script({ code: "return String($vars.requesterTask.output.justification || '');", returns: "string" }),
               { label: "Save answer", updates: { justification: out("keepJustification") } })
             .step("rejudge", inlineAgent({
@@ -463,7 +542,8 @@ export default flow("08cdc015-6874-49a8-ac05-743f6edf1bf6")
   // 8. Approver review, assigned for the combined amount.
   .branch("reviewNeeded", js`$vars.needsReview === true`,
     (yes) => yes.label("Yes")
-    .step("reviewCard", script({ code: REVIEW_CARD_CODE, returns: { caseSummary: "string", ruleEvidence: "string", agentAssessment: "string", requesterJustification: "string", title: "string" } }),
+    .step("reviewCard", script({ code: REVIEW_CARD_CODE, returns: { whatHappened: "string", combined: "string", approval: "string", risk: "string",
+      whyFlagged: "string", aiView: "string", justification: "string", guide: "string", title: "string" } }),
       { label: "Review card" })
     .stepSwitch("approverReview", hitl({
       variant: "quick-form",
@@ -471,18 +551,18 @@ export default flow("08cdc015-6874-49a8-ac05-743f6edf1bf6")
       priority: "High",
       labels: "SplitSentinel,Review",
       fields: reviewFields,
-      outcomes: ["Consolidate", "Approve separately", "Reject", "False positive"],
+      outcomes: [REVIEW_OUTCOMES.consolidate, REVIEW_OUTCOMES.separate, REVIEW_OUTCOMES.reject, REVIEW_OUTCOMES.notSplit],
     }), [
-      { value: "Consolidate", body: (b) => b
+      { value: REVIEW_OUTCOMES.consolidate, body: (b) => b
         .step("decConsolidate", script({ code: 'return "CONSOLIDATE";' }),
           { label: "Consolidate", updates: { finalPrStatus: lit("Consolidated"), humanDecision: lit("CONSOLIDATE"), humanComment: out("approverReview", "comment") } }) },
-      { value: "Approve separately", body: (b) => b
+      { value: REVIEW_OUTCOMES.separate, body: (b) => b
         .step("decApproveSeparate", script({ code: 'return "APPROVE_SEPARATE";' }),
           { label: "Approve", updates: { finalPrStatus: lit("Released"), humanDecision: lit("APPROVE_SEPARATE"), humanComment: out("approverReview", "comment") } }) },
-      { value: "Reject", body: (b) => b
+      { value: REVIEW_OUTCOMES.reject, body: (b) => b
         .step("decReject", script({ code: 'return "REJECT";' }),
           { label: "Reject", updates: { finalPrStatus: lit("Rejected"), humanDecision: lit("REJECT"), humanComment: out("approverReview", "comment") } }) },
-      { value: "False positive", body: (b) => b
+      { value: REVIEW_OUTCOMES.notSplit, body: (b) => b
         .step("decFalsePositive", script({ code: 'return "FALSE_POSITIVE";' }),
           { label: "False positive", updates: { finalPrStatus: lit("Released"), humanDecision: lit("FALSE_POSITIVE"), humanComment: out("approverReview", "comment") } }) },
     ], { label: "Approver task" }),

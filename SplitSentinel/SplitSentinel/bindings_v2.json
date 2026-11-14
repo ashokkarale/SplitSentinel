@@ -38,6 +38,54 @@
         "UseConnectionService": "true",
         "Connector": "uipath-uipath-dataservice"
       }
+    },
+    {
+      "resource": "EventTrigger",
+      "key": "01745482-f6ba-4353-addc-38659df5845c_02ee06a0-0102-4000-8000-03ecda730102",
+      "id": "EventTrigger01745482-f6ba-4353-addc-38659df5845c_02ee06a0-0102-4000-8000-03ecda730102",
+      "value": {
+        "ConnectionId": {
+          "defaultValue": "01745482-f6ba-4353-addc-38659df5845c",
+          "isExpression": false
+        },
+        "EntryPointUniqueId": {
+          "defaultValue": "02ee06a0-0102-4000-8000-03ecda730102",
+          "isExpression": false
+        }
+      },
+      "metadata": {
+        "UseConnectionService": "true",
+        "Connector": "uipath-uipath-dataservice",
+        "ActivityName": "New PR created",
+        "BindingsVersion": "2.2",
+        "ObjectName": "EntityTriggers_V3",
+        "Operation": "CREATED_V3",
+        "FilterExpression": ""
+      }
+    },
+    {
+      "resource": "Property",
+      "key": "CREATED_V3_02ee06a0-0102-4000-8000-03ecda730102",
+      "value": {
+        "entityScope": {
+          "defaultValue": "tenant",
+          "isExpression": false
+        },
+        "tenantEntityName": {
+          "defaultValue": "PurchaseRequisition",
+          "isExpression": false
+        }
+      },
+      "activityDisplayName": "connector-activity",
+      "metadata": {
+        "ActivityName": "New PR created",
+        "BindingsVersion": "2.2",
+        "ObjectName": "EntityTriggers_V3",
+        "ParentResourceKey": "EventTrigger.01745482-f6ba-4353-addc-38659df5845c_02ee06a0-0102-4000-8000-03ecda730102",
+        "TriggerCreateParameters": "entityScope,tenantEntityName",
+        "DebugQueryParameters": "entityScope,tenantEntityName"
+      },
+      "id": "Property_02ee06a0-0102-4000-8000-03ecda730102"
     }
   ]
 }

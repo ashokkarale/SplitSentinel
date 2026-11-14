@@ -5,18 +5,16 @@
     "maxTokens": 16384,
     "temperature": 0,
     "engine": "basic-v2",
-    "maxIterations": 25,
     "mode": "standard"
   },
+  "projectId": "21d8b49a-a126-448e-aada-c46266bd7ede",
+  "id": "21d8b49a-a126-448e-aada-c46266bd7ede",
+  "name": "judgeRetry",
   "inputSchema": {
     "type": "object",
     "properties": {
-      "rules__output__agentInput": {
-        "type": "string"
-      },
-      "check1__output__errors": {
-        "type": "string"
-      }
+      "rules__output__agentInput": {},
+      "check1__output__errors": {}
     }
   },
   "outputSchema": {
@@ -29,12 +27,10 @@
         "type": "number"
       },
       "patterns": {
-        "type": "array",
-        "items": {}
+        "type": "array"
       },
       "relatedPrIds": {
-        "type": "array",
-        "items": {}
+        "type": "array"
       },
       "combinedAmount": {
         "type": "number"
@@ -54,7 +50,19 @@
       "suggestedAction": {
         "type": "string"
       }
-    }
+    },
+    "required": [
+      "verdict",
+      "confidence",
+      "patterns",
+      "relatedPrIds",
+      "combinedAmount",
+      "requiredApprovalTier",
+      "competitiveBidRequired",
+      "legitException",
+      "reasoning",
+      "suggestedAction"
+    ]
   },
   "metadata": {
     "storageVersion": "50.0.0",
@@ -100,8 +108,5 @@
         }
       ]
     }
-  ],
-  "projectId": "21d8b49a-a126-448e-aada-c46266bd7ede",
-  "id": "21d8b49a-a126-448e-aada-c46266bd7ede",
-  "name": "Agent retry"
+  ]
 }
