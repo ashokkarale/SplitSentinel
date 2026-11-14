@@ -116,7 +116,13 @@ var summary = group.slice().sort(function (x, y) { return Date.parse(x.createdAt
   return '• ' + p.prId + (p.prId === prId ? ' (this PR)' : '') + '  ·  ' + shortDate(p.createdAt) + '  ·  ' + vn + '\\n   '
     + p.description + '  ·  ' + inr(p.amount);
 }).join('\\n');
+// Structured rows for the review app's PR table.
+var groupRows = group.slice().sort(function (x, y) { return Date.parse(x.createdAt) - Date.parse(y.createdAt); }).map(function (p) {
+  var vn = (vendors.filter(function (x) { return x.vendorId === p.vendorId; })[0] || {}).name || p.vendorId;
+  return { prId: p.prId, date: shortDate(p.createdAt), vendor: vn, description: p.description, amount: Number(p.amount), isAnchor: p.prId === prId };
+});
 return {
+  groupRows: groupRows,
   route: r.route, score: r.score, patterns: r.patterns.join(','), signals: JSON.stringify(r.signals),
   groupPrIds: r.groupPrIds, knownPrIds: r.groupPrIds, recordIds: recordIds, amounts: amounts,
   anchorRecordId: anchor.id, combinedAmount: r.combinedAmount, combinedTier: r.combinedTier, anchorTier: r.anchorTier,
@@ -130,6 +136,7 @@ return {
 const RULES_RETURNS = {
   route: "string", score: "number", patterns: "string", signals: "string",
   groupPrIds: "array", knownPrIds: "array", recordIds: "object", amounts: "object",
+  groupRows: "array",
   anchorRecordId: "string", combinedAmount: "number", combinedTier: "string", anchorTier: "string",
   requesterName: "string", requesterCostCenter: "string", requesterEmail: "string", managerEmail: "string",
   agentInput: "string", summary: "string", matrix: "array",
@@ -223,30 +230,51 @@ var rfq = tierRow.rfqRequired === true || String(tierRow.rfqRequired) === 'true'
 var related = (a.relatedPrIds && a.relatedPrIds.length ? a.relatedPrIds : rules.groupPrIds);
 var others = related.filter(function (x) { return x !== $vars.prId; });
 var approval = tier + ' · ' + roleName(tierRow.approverRole) + (rfq ? ' + RFQ' : '');
-var band = rules.score >= 60 ? 'high' : rules.score >= 30 ? 'medium' : 'low';
-var verdicts = { SPLIT: 'Split: one purchase broken into several PRs', LIKELY_SPLIT: 'Likely split', NOT_SPLIT: 'Not a split',
-  FAILED: 'No usable AI answer: decide from the rule evidence above' };
 var signals = JSON.parse(rules.signals || '[]');
+// Shaped to the review app's action-schema.json inputs (SplitSentinelReview).
 return {
-  whatHappened: rules.requesterName + ' (' + rules.requesterCostCenter + ') raised ' + $vars.prId
+  prId: $vars.prId,
+  caseRef: ($vars.dryRun ? 'What-if · ' : '') + 'SC-' + $vars.prId,
+  requesterName: rules.requesterName,
+  requesterCostCenter: rules.requesterCostCenter,
+  whatHappened: rules.requesterName + ' raised ' + $vars.prId
     + (others.length ? '. Together with ' + listIds(others) + ' it comes to ' + inr(amount) : ' for ' + inr(amount))
     + ', which needs ' + roleName(tierRow.approverRole) + ' approval (' + tier + ')' + (rfq ? ' and a competitive bid (RFQ)' : '')
     + (rules.anchorTier && rules.anchorTier !== tier ? '. On its own, the PR only needed ' + roleName(anchorRow.approverRole) + ' approval (' + rules.anchorTier + ').' : '.'),
-  combined: inr(amount),
-  approval: approval,
-  risk: rules.score + ' / 100 (' + band + ')',
-  whyFlagged: signals.length ? signals.map(function (s) { return (s.points > 0 ? '• ' : '– ') + s.detail + '  (' + (s.points > 0 ? '+' : '') + s.points + ')'; }).join('\\n') : 'No rule signals.',
-  aiView: (verdicts[a.verdict] || 'Not assessed') + (a.verdict && a.verdict !== 'FAILED' ? ', ' + Math.round((Number(a.confidence) || 0) * 100) + '% confident' : '')
-    + (a.legitException && a.legitException !== 'NONE' ? '\\nException claimed: ' + a.legitException.replace(/_/g, ' ').toLowerCase() : '')
-    + '\\n\\n' + (a.reasoning || '') + (a.corrections ? '\\n\\n(Checked against the data and corrected: ' + a.corrections + ')' : ''),
-  justification: $vars.justification || '',
-  guide: 'Merge PRs: one ' + inr(amount) + ' requirement, sent to ' + roleName(tierRow.approverRole) + (rfq ? ' with an RFQ' : '') + '.\\n'
-    + 'Keep separate: release the PRs as raised.\\n'
-    + 'Reject: reject all of them; the requester is told why.\\n'
-    + 'Not a split: release them and log a false alarm.',
+  combinedAmount: Number(amount) || 0,
+  approvalTier: tier || '',
+  approverRole: roleName(tierRow.approverRole),
+  rfqRequired: rfq,
+  anchorTier: rules.anchorTier || '',
+  anchorApproverRole: roleName(anchorRow.approverRole),
+  riskScore: Math.round(Number(rules.score) || 0),
+  relatedPrs: (rules.groupRows || []).filter(function (row) { return related.indexOf(row.prId) >= 0; }),
+  signals: signals.map(function (s) { return { text: s.detail, points: s.points }; }),
+  aiVerdict: a.verdict || 'NOT_RUN',
+  aiConfidence: Number(a.confidence) || 0,
+  aiException: a.legitException || 'NONE',
+  aiReasoning: a.reasoning || '',
+  aiCorrections: a.corrections || '',
+  requesterJustification: $vars.justification || '',
   title: 'Possible split: ' + $vars.prId + ' · ' + inr(amount) + ' needs ' + roleName(tierRow.approverRole)
 };
 `;
+
+// The review app (coded Action App in this solution): its key and data contract are read
+// from the solution files, so the Flow always matches the app that ships with it.
+const REVIEW_APP = JSON.parse(repo("SplitSentinel/resources/solution_folder/app/codedAction/SplitSentinelReview.json")).resource;
+const REVIEW_SCHEMA = JSON.parse(repo("SplitSentinel/SplitSentinelReview/action-schema.json"));
+const REVIEW_CARD_RETURNS = {
+  prId: "string", caseRef: "string", requesterName: "string", requesterCostCenter: "string", whatHappened: "string",
+  combinedAmount: "number", approvalTier: "string", approverRole: "string", rfqRequired: "boolean",
+  anchorTier: "string", anchorApproverRole: "string", riskScore: "number", relatedPrs: "array", signals: "array",
+  aiVerdict: "string", aiConfidence: "number", aiException: "string", aiReasoning: "string", aiCorrections: "string",
+  requesterJustification: "string", title: "string",
+} as const;
+// Every app input is bound to the review card's field of the same name.
+const REVIEW_APP_INPUTS = Object.fromEntries(
+  Object.keys(REVIEW_SCHEMA.inputs.properties).map((k) => [k, out("reviewCard", k)]),
+);
 
 const ASK_CARD_CODE = `
 ${FORMAT_FNS}
@@ -294,34 +322,9 @@ if (st === 'Consolidated') {
 return { to: rules.requesterEmail, cc: (st === 'Consolidated' || st === 'Rejected') ? rules.managerEmail : '', subject: 'SplitSentinel: ' + subject, body: body };
 `;
 
-// Approver form: summary first, key figures side by side, details as multi-line text, then the
-// button guide right above the buttons (quick-form outcomes can't carry tooltips).
-const reviewFields = [
-  { id: "whatHappened", label: "What happened", type: "string", direction: "input" as const, controlType: "textarea" as const,
-    value: out("reviewCard", "whatHappened") },
-  { id: "combined", label: "Combined amount", type: "string", direction: "input" as const, colSpan: 4, value: out("reviewCard", "combined") },
-  { id: "approval", label: "Approval needed", type: "string", direction: "input" as const, colSpan: 4, value: out("reviewCard", "approval") },
-  { id: "risk", label: "Risk score", type: "string", direction: "input" as const, colSpan: 4, value: out("reviewCard", "risk") },
-  { id: "relatedPrs", label: "The purchase requisitions", type: "string", direction: "input" as const, controlType: "textarea" as const,
-    value: out("rules", "summary") },
-  { id: "whyFlagged", label: "Why it was flagged", type: "string", direction: "input" as const, controlType: "textarea" as const,
-    value: out("reviewCard", "whyFlagged") },
-  { id: "aiView", label: "AI assessment", type: "string", direction: "input" as const, controlType: "textarea" as const,
-    value: out("reviewCard", "aiView") },
-  // Hidden when the requester was not asked.
-  { id: "justification", label: "Requester's explanation", type: "string", direction: "input" as const, controlType: "textarea" as const,
-    value: out("reviewCard", "justification"),
-    rules: [{ id: "hideWhenEmpty", conditions: [{ when: "justification", is: "" }], effects: { visible: false } }] },
-  { id: "guide", label: "What each button does", type: "string", direction: "input" as const, controlType: "textarea" as const,
-    value: out("reviewCard", "guide") },
-  { id: "comment", label: "Your comment (required; shared with the requester)", type: "string", direction: "output" as const,
-    controlType: "textarea" as const,
-    required: true, requiredMessage: "Add a short reason. It goes into the audit record and the requester's email." },
-];
-
-// Button names double as the routing values below; keep them short so they fit on one line.
-// The form card has a fixed width (no setting for it), so all four must fit on one row.
-const REVIEW_OUTCOMES = { consolidate: "Merge PRs", separate: "Keep separate", reject: "Reject", notSplit: "Not a split" };
+// The review app's outcome keys (its buttons show friendly labels and tooltips).
+const REVIEW_OUTCOMES = { consolidate: "MergePRs", separate: "KeepSeparate", reject: "Reject", notSplit: "NotASplit" };
+// Requester quick-form button names double as routing values; keep them short.
 const ASK_OUTCOMES = { explain: "Submit explanation", merge: "Merge my PRs" };
 
 // Canvas annotations. Sticky notes are inert: the platform skips them during validation
@@ -341,11 +344,11 @@ const NOTES = [
     content: "GUARDRAIL\nThe agent can clear a case only with a legitimate exception AND a rule score below 60.\nEverything else goes to a person — the agent never approves a high-risk case on its own." },
   { id: "noteRequester", color: "yellow", x: 4800, y: 780, width: 320, height: 150,
     content: "REQUESTER JUSTIFICATION (one round)\nOn mixed evidence the requester can explain or consolidate.\nThe agent re-judges with the explanation; vague reasons (\"urgent\") don't count." },
-  { id: "noteApprover", color: "yellow", x: 6200, y: 820, width: 340, height: 170,
-    content: "APPROVER REVIEW\nAssigned for the COMBINED amount's tier, with rule evidence, agent reasoning and any justification on the form.\nSLA/escalation is set in Action Center — Flow human tasks have no timeout." },
-  { id: "noteAudit", color: "white", x: 8240, y: 60, width: 320, height: 150,
+  { id: "noteApprover", color: "yellow", x: 6420, y: 820, width: 340, height: 170,
+    content: "APPROVER REVIEW (coded Action App SplitSentinelReview)\nPR and signal tables, AI verdict, tooltips on every button. The chosen button comes back as Action; unknown values are held.\nSLA/escalation is set in Action Center." },
+  { id: "noteAudit", color: "white", x: 8480, y: 60, width: 320, height: 150,
     content: "AUDIT TRAIL\nEvery run writes a SplitCase record: rule score + signals, agent verdict + reasoning, human decision, final outcome and a step-by-step run log." },
-  { id: "noteNotify", color: "green", x: 8720, y: 760, width: 320, height: 150,
+  { id: "noteNotify", color: "green", x: 8960, y: 760, width: 320, height: 150,
     content: "NOTIFICATIONS\nThe requester (and manager, on consolidate/reject) gets an email saved as a Gmail draft.\nSkipped on what-if runs; a mail failure never blocks the case." },
 ];
 
@@ -368,13 +371,13 @@ const LAYOUT = {
     askCard: at(4800, 560), requesterTask: at(5040, 560), requesterConsolidates: at(5280, 560),
     keepJustification: at(5280, 760), rejudge: at(5520, 760), check3: at(5760, 760), gateway2: at(6000, 760),
     reviewNeeded: at(6240, 320),
-    reviewCard: at(6480, 600), approverReview: at(6720, 568, dim(96, 160)),
-    decConsolidate: at(6960, 480), decApproveSeparate: at(6960, 640), decReject: at(6960, 800), decFalsePositive: at(6960, 960),
-    finalize: at(7200, 320),
-    applyStatus: at(7440, 224, dim(560, 320)), setStatus: at(232, 112),
-    writeCase: at(8240, 320), notifyNeeded: at(8480, 320),
-    notifyText: at(8720, 560), notify: at(8960, 560), notifyDone: at(9200, 560),
-    end5: at(9440, 320),
+    reviewCard: at(6480, 600), approverReview: at(6720, 600), approverDecision: at(6960, 600),
+    decConsolidate: at(7200, 400), decApproveSeparate: at(7200, 560), decReject: at(7200, 720), decFalsePositive: at(7200, 880), decUnknown: at(7200, 1040),
+    finalize: at(7440, 320),
+    applyStatus: at(7680, 224, dim(560, 320)), setStatus: at(232, 112),
+    writeCase: at(8480, 320), notifyNeeded: at(8720, 320),
+    notifyText: at(8960, 560), notify: at(9200, 560), notifyDone: at(9440, 560),
+    end5: at(9680, 320),
   },
   // The three release lanes run above the main path and drop into "Review?" just before it.
   edges: {
@@ -542,30 +545,41 @@ export default flow("08cdc015-6874-49a8-ac05-743f6edf1bf6")
   // 8. Approver review, assigned for the combined amount.
   .branch("reviewNeeded", js`$vars.needsReview === true`,
     (yes) => yes.label("Yes")
-    .step("reviewCard", script({ code: REVIEW_CARD_CODE, returns: { whatHappened: "string", combined: "string", approval: "string", risk: "string",
-      whyFlagged: "string", aiView: "string", justification: "string", guide: "string", title: "string" } }),
-      { label: "Review card" })
-    .stepSwitch("approverReview", hitl({
-      variant: "quick-form",
+    .step("reviewCard", script({ code: REVIEW_CARD_CODE, returns: REVIEW_CARD_RETURNS }), { label: "Review card" })
+    // Coded Action App: tables for the PRs and rule signals, tooltips on every button.
+    .step("approverReview", hitl({
+      variant: "action-app",
       title: out("reviewCard", "title"),
       priority: "High",
       labels: "SplitSentinel,Review",
-      fields: reviewFields,
+      app: {
+        name: REVIEW_APP.name,
+        key: REVIEW_APP.key,
+        location: "in-solution",
+        actionSchema: REVIEW_SCHEMA,
+        inputs: REVIEW_APP_INPUTS,
+      },
       outcomes: [REVIEW_OUTCOMES.consolidate, REVIEW_OUTCOMES.separate, REVIEW_OUTCOMES.reject, REVIEW_OUTCOMES.notSplit],
-    }), [
-      { value: REVIEW_OUTCOMES.consolidate, body: (b) => b
+    }), { label: "Approver task" })
+    // An app task leaves on one exit; the chosen button arrives as `Action`.
+    .switch("approverDecision", out("approverReview", "Action"), [
+      { value: REVIEW_OUTCOMES.consolidate, label: "Merge PRs", body: (b) => b
         .step("decConsolidate", script({ code: 'return "CONSOLIDATE";' }),
           { label: "Consolidate", updates: { finalPrStatus: lit("Consolidated"), humanDecision: lit("CONSOLIDATE"), humanComment: out("approverReview", "comment") } }) },
-      { value: REVIEW_OUTCOMES.separate, body: (b) => b
+      { value: REVIEW_OUTCOMES.separate, label: "Keep separate", body: (b) => b
         .step("decApproveSeparate", script({ code: 'return "APPROVE_SEPARATE";' }),
           { label: "Approve", updates: { finalPrStatus: lit("Released"), humanDecision: lit("APPROVE_SEPARATE"), humanComment: out("approverReview", "comment") } }) },
-      { value: REVIEW_OUTCOMES.reject, body: (b) => b
+      { value: REVIEW_OUTCOMES.reject, label: "Reject", body: (b) => b
         .step("decReject", script({ code: 'return "REJECT";' }),
           { label: "Reject", updates: { finalPrStatus: lit("Rejected"), humanDecision: lit("REJECT"), humanComment: out("approverReview", "comment") } }) },
-      { value: REVIEW_OUTCOMES.notSplit, body: (b) => b
+      { value: REVIEW_OUTCOMES.notSplit, label: "Not a split", body: (b) => b
         .step("decFalsePositive", script({ code: 'return "FALSE_POSITIVE";' }),
           { label: "False positive", updates: { finalPrStatus: lit("Released"), humanDecision: lit("FALSE_POSITIVE"), humanComment: out("approverReview", "comment") } }) },
-    ], { label: "Approver task" }),
+    ], (other) => other
+      // Fail closed: an outcome the Flow doesn't know never releases anything.
+      .step("decUnknown", script({ code: "return String($vars.approverReview.output.Action || '');", returns: "string" }),
+        { label: "Unknown: hold", updates: { finalPrStatus: lit("OnHold"), humanDecision: lit("UNKNOWN"), humanComment: out("approverReview", "comment") } }),
+    { label: "Decision" }),
     undefined, { label: "Review?" })
 
   // 9. Apply the outcome and write the audit record.

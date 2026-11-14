@@ -1,0 +1,10 @@
+{
+  "ProjectType": "AppV2",
+  "WebAppSettings": {
+    "AppId": "",
+    "IsCoreProject": false
+  },
+  "Name": "SplitSentinelReview",
+  "Description": null,
+  "MainFile": null
+}

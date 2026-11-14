@@ -1,0 +1,23 @@
+{
+  "docVersion": "1.0.0",
+  "resource": {
+    "name": "SplitSentinelReview",
+    "kind": "package",
+    "apiVersion": "orchestrator.uipath.com/v1",
+    "projectKey": "229272b4-5968-432e-8294-2200cd8d837f",
+    "isOverridable": true,
+    "dependencies": [],
+    "runtimeDependencies": [],
+    "folders": [
+      {
+        "fullyQualifiedName": "solution_folder"
+      }
+    ],
+    "spec": {
+      "name": "SplitSentinelReview"
+    },
+    "locks": [],
+    "key": "08abcb94-a45e-4a53-8d9c-4c55ff2f1019",
+    "files": []
+  }
+}

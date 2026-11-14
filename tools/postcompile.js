@@ -48,7 +48,8 @@ function contentUuid(text) {
 const reschemed = [];
 for (const node of flow.nodes) {
   const schema = node.inputs && node.inputs.schema;
-  if (!String(node.type).startsWith('uipath.human-in-the-loop') || !schema || !schema.schemaId) continue;
+  // Quick forms only: an Action App's form comes from the app itself.
+  if (node.type !== 'uipath.human-in-the-loop.quick-form' || !schema || !schema.schemaId) continue;
   const id = contentUuid(`${flow.id}/${node.id}/${JSON.stringify({ fields: schema.fields, outcomes: schema.outcomes })}`);
   if (schema.schemaId !== id) {
     schema.schemaId = id;

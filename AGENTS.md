@@ -149,6 +149,7 @@ uip maestro flow debug SplitSentinel --log-level error --output json `
 ### Deploy (only when the user asks)
 ```powershell
 # from the repo root
+(cd SplitSentinel/SplitSentinelReview/source; npm ci; npm run build)   # the review app's dist/ is a build output, not committed
 uip solution resources refresh --solution-folder SplitSentinel --output json
 uip solution pack SplitSentinel <out-dir> --version <x.y.z> --output json
 uip solution publish <out-dir>/SplitSentinel_<x.y.z>.zip --output json
@@ -205,6 +206,13 @@ Eval set **"Guardrail and failures"** (project assets under the Flow project) us
 - Branch arms carry edge labels with `.label('…')`; switch cases use `label` on the case. Human-task (`stepSwitch`) arms can't take one — the outcome name already labels the exit.
 - Canvas annotations are the `NOTES` sticky notes (`.stickyNotes(NOTES)`), one per section. They are inert.
 - Layout (`LAYOUT`, via `.layout(LAYOUT)`): main path on y=320 with 240 px columns; release outcomes in lanes above (pinned edge routes drop them into `reviewNeeded`); retry / requester / approver paths in lanes below; terminal ends in the bottom lane. Children of the loop container are positioned relative to it. Keep labels to 1–3 words so they fit under a 96 px node. After any layout change, check that no node, label area or note overlaps and that no edge crosses an unrelated node.
+
+### Review app (coded Action App `SplitSentinelReview`)
+- In-solution project `SplitSentinel/SplitSentinelReview/` (created with `uip codedapp init --type Action`, registered as `AppV2`): React + TypeScript in `source/` (Vite, `base: './'`), built to `source/dist`, the bundle the solution packs. No UiPath SDK services, so no OAuth client; it only uses `@uipath/coded-action-app`.
+- Data contract: `SplitSentinelReview/action-schema.json` (validate with the coded-apps skill's `scripts/validate-action-schema.js`). Inputs include `relatedPrs` and `signals` arrays rendered as tables; output `comment` (required); outcomes `MergePRs`, `KeepSeparate`, `Reject`, `NotASplit`.
+- The Flow reads the app's key and schema at compile time from `resources/solution_folder/app/codedAction/SplitSentinelReview.json` and the schema file, and binds every app input to the `reviewCard` field of the same name. Change the schema and `REVIEW_CARD_CODE` together.
+- An app task has one `completed` exit; the button arrives as `out('approverReview', 'Action')` and the `approverDecision` switch routes it. Unknown values go to `decUnknown` (PR on hold).
+- Button tooltips live in the app (`Form.tsx`, `outcomes[].tip`); styles in `SplitReview.css` use the template's tokens only.
 
 ### Action Center forms
 - Form text is built in script steps (`reviewCard`, `askCard`) using `FORMAT_FNS` (₹ Indian grouping, short dates, role names; the script runtime has no `Intl`).

@@ -1,0 +1,72 @@
+{
+  "inputs": {
+    "type": "object",
+    "properties": {
+      "prId": { "type": "string", "required": true, "description": "The purchase requisition that triggered the check" },
+      "caseRef": { "type": "string", "required": false, "description": "SplitSentinel case reference" },
+      "requesterName": { "type": "string", "required": false },
+      "requesterCostCenter": { "type": "string", "required": false },
+      "whatHappened": { "type": "string", "required": false, "description": "One-paragraph plain-English summary of the case" },
+      "combinedAmount": { "type": "number", "required": false, "description": "Combined INR amount of the related PRs" },
+      "approvalTier": { "type": "string", "required": false, "description": "Tier the combined amount needs, e.g. T2" },
+      "approverRole": { "type": "string", "required": false, "description": "Approver for that tier, in plain words" },
+      "rfqRequired": { "type": "boolean", "required": false, "description": "Whether the tier requires a competitive bid" },
+      "anchorTier": { "type": "string", "required": false, "description": "Tier this PR alone would need" },
+      "anchorApproverRole": { "type": "string", "required": false },
+      "riskScore": { "type": "integer", "required": false, "description": "Rule engine score 0-100" },
+      "relatedPrs": {
+        "type": "array",
+        "required": false,
+        "description": "The PRs grouped as one possible purchase",
+        "items": {
+          "type": "object",
+          "properties": {
+            "prId": { "type": "string" },
+            "date": { "type": "string" },
+            "vendor": { "type": "string" },
+            "description": { "type": "string" },
+            "amount": { "type": "number" },
+            "isAnchor": { "type": "boolean" }
+          }
+        }
+      },
+      "signals": {
+        "type": "array",
+        "required": false,
+        "description": "Rule signals with their points",
+        "items": {
+          "type": "object",
+          "properties": {
+            "text": { "type": "string" },
+            "points": { "type": "integer" }
+          }
+        }
+      },
+      "aiVerdict": { "type": "string", "required": false, "description": "SPLIT, LIKELY_SPLIT, NOT_SPLIT or FAILED" },
+      "aiConfidence": { "type": "number", "required": false, "description": "0 to 1" },
+      "aiException": { "type": "string", "required": false },
+      "aiReasoning": { "type": "string", "required": false },
+      "aiCorrections": { "type": "string", "required": false },
+      "requesterJustification": { "type": "string", "required": false }
+    }
+  },
+  "outputs": {
+    "type": "object",
+    "properties": {
+      "comment": { "type": "string", "required": true, "description": "Reviewer's reason; goes into the audit record and the requester's email" }
+    }
+  },
+  "inOuts": {
+    "type": "object",
+    "properties": {}
+  },
+  "outcomes": {
+    "type": "object",
+    "properties": {
+      "MergePRs": { "type": "string" },
+      "KeepSeparate": { "type": "string" },
+      "Reject": { "type": "string" },
+      "NotASplit": { "type": "string" }
+    }
+  }
+}
