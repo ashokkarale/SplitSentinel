@@ -57,6 +57,7 @@ Requires a UiPath Automation Cloud tenant with Maestro, Agents, Data Fabric and 
    ```bash
    uip maestro flow check .flow-sdk/SplitSentinel.flow.ts --source
    uip maestro flow compile .flow-sdk/SplitSentinel.flow.ts -o SplitSentinel.flow
+   node tools/postcompile.js SplitSentinel/SplitSentinel/SplitSentinel.flow   # from the repo root
    uip maestro flow validate SplitSentinel/SplitSentinel.flow
    ```
 6. Run one case in the cloud (input is the PR id; `whatIf: true` re-checks without changing anything):

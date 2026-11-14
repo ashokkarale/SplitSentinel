@@ -126,10 +126,13 @@ uip maestro flow init SplitSentinel --automate --sdk-source
 # in SplitSentinel/SplitSentinel/
 uip maestro flow check .flow-sdk/SplitSentinel.flow.ts --source --output json
 uip maestro flow compile .flow-sdk/SplitSentinel.flow.ts -o SplitSentinel.flow --output json
+# from the repo root
+node tools/postcompile.js SplitSentinel/SplitSentinel/SplitSentinel.flow       # sets errorHandlingEnabled on error-edge sources
 # in SplitSentinel/
 uip maestro flow validate "SplitSentinel/SplitSentinel.flow" --output json      # must be Data.Status = "Valid"
-uip maestro flow format   "SplitSentinel/SplitSentinel.flow" --output json
 ```
+- **Do not run `uip maestro flow format`.** The canvas layout is hand-authored in the source (`LAYOUT`: lanes, positions, pinned edge routes) and `format` replaces all of it.
+- `tools/postcompile.js` works around an SDK 6.74.2 issue: with `.layout(...)`, compile leaves `inputs.errorHandlingEnabled` unset on some `.onError` sources (the agent steps), and validate rejects their error edges. The script sets the flag only on nodes that have an `error` edge.
 - Treat `Data.Warnings` as failures, unless they are reviewed shared-connection advisories.
 - Exactly one `SplitSentinel.flow` may exist, at `SplitSentinel/SplitSentinel/SplitSentinel.flow`.
 
@@ -196,6 +199,12 @@ Deployed: `Shared/SplitSentinel` (v1.0.0, Active). New versions go through `uip 
 
 ### Flow evaluations
 Eval set **"Guardrail and failures"** (project assets under the Flow project) uses Static simulations of the `judge` / `judgeRetry` agent steps and the `Path exact match` evaluator on the `path` output. Run: `uip maestro flow eval runs start --set "Guardrail and failures" --path .` from `SplitSentinel/SplitSentinel/`. Human tasks still appear and must be completed.
+
+### Canvas labels and annotations
+- Every step, branch, switch, loop and trigger has a business-readable `label` (`{ label: '…' }` in its options). **Labels are display-only; never rename a step id** — ids are referenced by `out()`, the eval simulations (`judge`, `judgeRetry`) and the run log.
+- Branch arms carry edge labels with `.label('…')`; switch cases use `label` on the case. Human-task (`stepSwitch`) arms can't take one — the outcome name already labels the exit.
+- Canvas annotations are the `NOTES` sticky notes (`.stickyNotes(NOTES)`), one per section. They are inert.
+- Layout (`LAYOUT`, via `.layout(LAYOUT)`): main path on y=320 with 240 px columns; release outcomes in lanes above (pinned edge routes drop them into `reviewNeeded`); retry / requester / approver paths in lanes below; terminal ends in the bottom lane. Children of the loop container are positioned relative to it. Keep labels to 1–3 words so they fit under a 96 px node. After any layout change, check that no node, label area or note overlaps and that no edge crosses an unrelated node.
 
 ### Gotchas found while building
 - A `shared` input variable must not have the same name as the input (`SHARED_INPUT_TARGET_IS_INPUT`).

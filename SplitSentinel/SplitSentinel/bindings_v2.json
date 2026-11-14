@@ -13,7 +13,7 @@
         }
       },
       "metadata": {
-        "ActivityName": "notify",
+        "ActivityName": "Gmail draft",
         "BindingsVersion": "2.2",
         "DisplayLabel": "uipath-google-gmail connection",
         "UseConnectionService": "true",
@@ -32,7 +32,7 @@
         }
       },
       "metadata": {
-        "ActivityName": "Record Created",
+        "ActivityName": "New PR created",
         "BindingsVersion": "2.2",
         "DisplayLabel": "uipath-uipath-dataservice connection",
         "UseConnectionService": "true",

@@ -5,15 +5,15 @@
     "maxTokens": 16384,
     "temperature": 0,
     "engine": "basic-v2",
+    "maxIterations": 25,
     "mode": "standard"
   },
-  "projectId": "39003c86-fbb1-4840-aeec-3922117ac4d0",
-  "id": "39003c86-fbb1-4840-aeec-3922117ac4d0",
-  "name": "judge",
   "inputSchema": {
     "type": "object",
     "properties": {
-      "rules__output__agentInput": {}
+      "rules__output__agentInput": {
+        "type": "string"
+      }
     }
   },
   "outputSchema": {
@@ -26,10 +26,12 @@
         "type": "number"
       },
       "patterns": {
-        "type": "array"
+        "type": "array",
+        "items": {}
       },
       "relatedPrIds": {
-        "type": "array"
+        "type": "array",
+        "items": {}
       },
       "combinedAmount": {
         "type": "number"
@@ -49,19 +51,7 @@
       "suggestedAction": {
         "type": "string"
       }
-    },
-    "required": [
-      "verdict",
-      "confidence",
-      "patterns",
-      "relatedPrIds",
-      "combinedAmount",
-      "requiredApprovalTier",
-      "competitiveBidRequired",
-      "legitException",
-      "reasoning",
-      "suggestedAction"
-    ]
+    }
   },
   "metadata": {
     "storageVersion": "50.0.0",
@@ -95,5 +85,8 @@
         }
       ]
     }
-  ]
+  ],
+  "projectId": "39003c86-fbb1-4840-aeec-3922117ac4d0",
+  "id": "39003c86-fbb1-4840-aeec-3922117ac4d0",
+  "name": "Agent judge"
 }
