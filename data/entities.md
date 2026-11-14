@@ -101,6 +101,9 @@ Types follow the Data Fabric UI-safe set: `DECIMAL` (precision 0 for whole numbe
 | PR-2101, PR-2102 | Demo split history, see `data/demo/` |
 | PR-2103 | Demo split, reviewed by the user (Approve separately) |
 | PR-2104 | Coded Action App test on v1.0.3 (Rejected with all related PRs) |
+| PR-2105, PR-2106 | Borderline test on v1.0.4; the agent cleared PR-2106 as a separate need (Released, no task) |
+| PR-2107 | Follow-up to PR-2105; LIKELY_SPLIT → approver Rejected PR-2105 and PR-2107 |
+| PR-2108, PR-2109 | Explain-app test on v1.0.4: requester explained, agent re-judged, approver kept them separate (Released) |
 
 ## Loading seed data
 

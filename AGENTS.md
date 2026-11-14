@@ -131,6 +131,7 @@ node tools/postcompile.js SplitSentinel/SplitSentinel/SplitSentinel.flow       #
 # in SplitSentinel/
 uip maestro flow validate "SplitSentinel/SplitSentinel.flow" --output json      # must be Data.Status = "Valid"
 ```
+- **Never save the flow from the designer canvas.** With the flow open, the designer re-saves the compiled `.flow`: it moves each coded-app task's `completed` edge onto the first outcome port (other buttons lose their path) and drops `errorHandlingEnabled`. Its "Outcome … has no downstream node" warnings on app tasks are expected; the runtime routes on `completed` + `Action`. If the file changed, restore it with `git checkout` or recompile.
 - **Do not run `uip maestro flow format`.** The canvas layout is hand-authored in the source (`LAYOUT`: lanes, positions, pinned edge routes) and `format` replaces all of it.
 - `tools/postcompile.js` works around an SDK 6.74.2 issue: with `.layout(...)`, compile leaves `inputs.errorHandlingEnabled` unset on some `.onError` sources (the agent steps), and validate rejects their error edges. The script sets the flag only on nodes that have an `error` edge.
 - Treat `Data.Warnings` as failures, unless they are reviewed shared-connection advisories.
@@ -161,7 +162,7 @@ uip solution deploy config link <cfg>.json "SplitSentinel Data Fabric" --name "S
 uip solution deploy config link <cfg>.json "Gmail Connection" --name "Gmail Connection" --folder-path "<personal workspace path>"
 uip solution deploy run --name SplitSentinel --package-name SplitSentinel --package-version <x.y.z> --folder-name SplitSentinel --parent-folder-path Shared --config-file <cfg>.json --output json
 ```
-Deployed: `Shared/SplitSentinel` (v1.0.2, Active; upgrades via `deploy upgrade <deployment-key> --version <x.y.z>`, which keeps the connection links). New versions go through `uip solution deploy upgrade`, not a second `deploy run`. Pass `--folder-path` as a plain string (a PowerShell object serialises as `@{Path=…}` and the link fails with `LinkedResourceNotFound`).
+Deployed: `Shared/SplitSentinel` (v1.0.4, Active; upgrades via `deploy upgrade <deployment-key> --version <x.y.z>`, which keeps the connection links). New versions go through `uip solution deploy upgrade`, not a second `deploy run`. Pass `--folder-path` as a plain string (a PowerShell object serialises as `@{Path=…}` and the link fails with `LinkedResourceNotFound`).
 
 ### Connectors
 - Find the node first: `uip maestro registry search '<service>'` (run `uip maestro registry pull` if the library isn't cached).

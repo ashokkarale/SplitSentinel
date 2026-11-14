@@ -81,6 +81,9 @@ Eval set run `74933264-…`: **Path exact match = 1.0 on both data points.** The
 | Gmail notification | New Submitted PR-2091, real (non-what-if) debug run | `notifyText` → `notify` → `notifyDone` all Completed; case `SC-PR-2091` Released; draft saved (not sent) |
 | Data Fabric event trigger | Solution v1.0.0 packed, published and deployed to `Shared/SplitSentinel` (connections linked to the existing ones); then inserted PR-2092 | Job started by `IntegrationTrigger` 3 s after the insert, Successful; `SC-PR-2092` written, PR-2092 → Released, run log complete |
 | Coded Action App (v1.0.3) | Deployed v1.0.3 with the in-solution review app; inserted PR-2104 (4th chair order) | Trigger opened an **AppTask**; the app received 4 PR rows and 6 signal rows; reviewer clicked Reject with a comment → all 4 PRs Rejected, `SC-PR-2104` written with the comment, job Successful |
+| Agent clears a look-alike (v1.0.4) | PR-2106 (₹97k display) after PR-2105 (₹96k laptops), same requester, rules score 45 | NOT_SPLIT / SEPARATE_PROJECT (0.82) → Released, no human task |
+| Agent catches a medium-score split (v1.0.4) | PR-2107 (more laptops for the same team, other vendor), rules score 35 | LIKELY_SPLIT (0.78) → approver AppTask; reviewer Reject → PR-2105 and PR-2107 Rejected |
+| Requester explanation app (v1.0.4) | PR-2109 (same cleaning service and vendor as PR-2108, different site), rules score 70 | Agent asked the requester → **explain AppTask** with all inputs; requester submitted "different sites"; agent re-judged LIKELY_SPLIT (0.82, justification insufficient per policy) → approver AppTask showed the explanation; reviewer Keep separate → PR-2109 Released, `SC-PR-2109` = APPROVE_SEPARATE |
 | Upgrade to v1.0.1 | `deploy upgrade` to the relaid-out version; inserted PR-2093 | Upgrade Active; trigger fired on v1.0.1, `SC-PR-2093` written, PR-2093 → Released |
 
 ## 7. Not run
