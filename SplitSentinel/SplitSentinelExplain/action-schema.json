@@ -1,0 +1,48 @@
+{
+  "inputs": {
+    "type": "object",
+    "properties": {
+      "prId": { "type": "string", "required": true, "description": "The purchase requisition that triggered the check" },
+      "caseRef": { "type": "string", "required": false },
+      "requesterName": { "type": "string", "required": false, "description": "First name, for the greeting" },
+      "message": { "type": "string", "required": false, "description": "Why the requester is seeing this, in plain words" },
+      "combinedAmount": { "type": "number", "required": false },
+      "approvalTier": { "type": "string", "required": false },
+      "approverRole": { "type": "string", "required": false },
+      "rfqRequired": { "type": "boolean", "required": false },
+      "relatedPrs": {
+        "type": "array",
+        "required": false,
+        "description": "The requester's PRs grouped as one possible purchase",
+        "items": {
+          "type": "object",
+          "properties": {
+            "prId": { "type": "string" },
+            "date": { "type": "string" },
+            "vendor": { "type": "string" },
+            "description": { "type": "string" },
+            "amount": { "type": "number" },
+            "isAnchor": { "type": "boolean" }
+          }
+        }
+      }
+    }
+  },
+  "outputs": {
+    "type": "object",
+    "properties": {
+      "justification": { "type": "string", "required": false, "description": "Why these are separate needs; required for SubmitExplanation" }
+    }
+  },
+  "inOuts": {
+    "type": "object",
+    "properties": {}
+  },
+  "outcomes": {
+    "type": "object",
+    "properties": {
+      "SubmitExplanation": { "type": "string" },
+      "MergeMyPRs": { "type": "string" }
+    }
+  }
+}

@@ -1,17 +1,22 @@
 {
-    "DocVersion": "1.0.0",
-    "StudioMinVersion": "2025.10.0",
-    "SolutionId": "6bca9279-6cbc-400e-1c70-08df39aec1f5",
-    "Projects": [
-        {
-            "Type": "Flow",
-            "ProjectRelativePath": "SplitSentinel/project.uiproj",
-            "Id": "dbd9ac3b-385b-4eff-b569-bd27e562b0c4"
-        },
-        {
-            "Type": "AppV2",
-            "ProjectRelativePath": "SplitSentinelReview/project.uiproj",
-            "Id": "229272b4-5968-432e-8294-2200cd8d837f"
-        }
-    ]
+  "DocVersion": "1.0.0",
+  "StudioMinVersion": "2025.10.0",
+  "SolutionId": "6bca9279-6cbc-400e-1c70-08df39aec1f5",
+  "Projects": [
+    {
+      "Type": "Flow",
+      "ProjectRelativePath": "SplitSentinel/project.uiproj",
+      "Id": "dbd9ac3b-385b-4eff-b569-bd27e562b0c4"
+    },
+    {
+      "Type": "AppV2",
+      "ProjectRelativePath": "SplitSentinelReview/project.uiproj",
+      "Id": "229272b4-5968-432e-8294-2200cd8d837f"
+    },
+    {
+      "Type": "AppV2",
+      "ProjectRelativePath": "SplitSentinelExplain/project.uiproj",
+      "Id": "d04d5d3a-9ac6-4e61-a742-8b1253fe0d4b"
+    }
+  ]
 }

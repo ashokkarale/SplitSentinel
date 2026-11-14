@@ -282,14 +282,33 @@ var a = $vars.agentResult || {};
 var rules = $vars.rules.output;
 var tierRow = (rules.matrix || []).filter(function (t) { return t.tierId === a.requiredApprovalTier; })[0] || {};
 var first = String(rules.requesterName || '').split(' ')[0] || 'there';
+var related = a.relatedPrIds && a.relatedPrIds.length ? a.relatedPrIds : rules.groupPrIds;
+// Shaped to the explain app's action-schema.json inputs (SplitSentinelExplain).
 return {
-  message: 'Hi ' + first + ', your requisitions ' + listIds(a.relatedPrIds || []) + ' look like parts of one purchase ('
-    + inr(a.combinedAmount) + ' together). Together they need ' + roleName(tierRow.approverRole) + ' approval (' + a.requiredApprovalTier + ').',
-  guide: 'Submit explanation: they are separate needs; say why below (project, site, purpose or budget). "Urgent" does not count.\\n'
-    + 'Merge my PRs: they are one purchase; combine them and send for the right approval.',
+  prId: $vars.prId,
+  caseRef: ($vars.dryRun ? 'What-if · ' : '') + 'SC-' + $vars.prId,
+  requesterName: first,
+  message: 'Hi ' + first + ', your requisitions ' + listIds(related) + ' look like parts of one purchase. '
+    + 'Together they come to ' + inr(a.combinedAmount) + ', which needs ' + roleName(tierRow.approverRole) + ' approval ('
+    + a.requiredApprovalTier + '). If they really are separate needs, tell us why; otherwise merge them.',
+  combinedAmount: Number(a.combinedAmount) || 0,
+  approvalTier: a.requiredApprovalTier || '',
+  approverRole: roleName(tierRow.approverRole),
+  rfqRequired: tierRow.rfqRequired === true || String(tierRow.rfqRequired) === 'true',
+  relatedPrs: (rules.groupRows || []).filter(function (row) { return related.indexOf(row.prId) >= 0; }),
   title: 'Please explain: ' + $vars.prId + ' may be a split purchase'
 };
 `;
+
+const EXPLAIN_APP = JSON.parse(repo("SplitSentinel/resources/solution_folder/app/codedAction/SplitSentinelExplain.json")).resource;
+const EXPLAIN_SCHEMA = JSON.parse(repo("SplitSentinel/SplitSentinelExplain/action-schema.json"));
+const ASK_CARD_RETURNS = {
+  prId: "string", caseRef: "string", requesterName: "string", message: "string", combinedAmount: "number",
+  approvalTier: "string", approverRole: "string", rfqRequired: "boolean", relatedPrs: "array", title: "string",
+} as const;
+const EXPLAIN_APP_INPUTS = Object.fromEntries(
+  Object.keys(EXPLAIN_SCHEMA.inputs.properties).map((k) => [k, out("askCard", k)]),
+);
 
 // Notification text per outcome (templates/notifications.md). Saved as a Gmail draft.
 const NOTIFY_CODE = `
@@ -324,8 +343,8 @@ return { to: rules.requesterEmail, cc: (st === 'Consolidated' || st === 'Rejecte
 
 // The review app's outcome keys (its buttons show friendly labels and tooltips).
 const REVIEW_OUTCOMES = { consolidate: "MergePRs", separate: "KeepSeparate", reject: "Reject", notSplit: "NotASplit" };
-// Requester quick-form button names double as routing values; keep them short.
-const ASK_OUTCOMES = { explain: "Submit explanation", merge: "Merge my PRs" };
+// The explain app's outcome keys.
+const ASK_OUTCOMES = { explain: "SubmitExplanation", merge: "MergeMyPRs" };
 
 // Canvas annotations. Sticky notes are inert: the platform skips them during validation
 // and conversion, so they document the diagram without changing behaviour.
@@ -343,12 +362,12 @@ const NOTES = [
   { id: "noteGuardrail", color: "pink", x: 3840, y: 760, width: 330, height: 160,
     content: "GUARDRAIL\nThe agent can clear a case only with a legitimate exception AND a rule score below 60.\nEverything else goes to a person — the agent never approves a high-risk case on its own." },
   { id: "noteRequester", color: "yellow", x: 4800, y: 780, width: 320, height: 150,
-    content: "REQUESTER JUSTIFICATION (one round)\nOn mixed evidence the requester can explain or consolidate.\nThe agent re-judges with the explanation; vague reasons (\"urgent\") don't count." },
-  { id: "noteApprover", color: "yellow", x: 6420, y: 820, width: 340, height: 170,
+    content: "REQUESTER EXPLANATION (coded Action App SplitSentinelExplain, one round)\nOn mixed evidence the requester sees their PRs as a table and can explain or merge.\nThe agent re-judges with the explanation; vague reasons (\"urgent\") don't count." },
+  { id: "noteApprover", color: "yellow", x: 6660, y: 820, width: 340, height: 170,
     content: "APPROVER REVIEW (coded Action App SplitSentinelReview)\nPR and signal tables, AI verdict, tooltips on every button. The chosen button comes back as Action; unknown values are held.\nSLA/escalation is set in Action Center." },
-  { id: "noteAudit", color: "white", x: 8480, y: 60, width: 320, height: 150,
+  { id: "noteAudit", color: "white", x: 8720, y: 60, width: 320, height: 150,
     content: "AUDIT TRAIL\nEvery run writes a SplitCase record: rule score + signals, agent verdict + reasoning, human decision, final outcome and a step-by-step run log." },
-  { id: "noteNotify", color: "green", x: 8960, y: 760, width: 320, height: 150,
+  { id: "noteNotify", color: "green", x: 9200, y: 760, width: 320, height: 150,
     content: "NOTIFICATIONS\nThe requester (and manager, on consolidate/reject) gets an email saved as a Gmail draft.\nSkipped on what-if runs; a mail failure never blocks the case." },
 ];
 
@@ -368,22 +387,25 @@ const LAYOUT = {
     judgeRetry: at(3840, 520), check2: at(4080, 520),
     gateway: at(4320, 320), decision: at(4560, 320),
     agentRelease: at(4800, -400), markReview: at(4800, 320),
-    askCard: at(4800, 560), requesterTask: at(5040, 560), requesterConsolidates: at(5280, 560),
-    keepJustification: at(5280, 760), rejudge: at(5520, 760), check3: at(5760, 760), gateway2: at(6000, 760),
-    reviewNeeded: at(6240, 320),
-    reviewCard: at(6480, 600), approverReview: at(6720, 600), approverDecision: at(6960, 600),
-    decConsolidate: at(7200, 400), decApproveSeparate: at(7200, 560), decReject: at(7200, 720), decFalsePositive: at(7200, 880), decUnknown: at(7200, 1040),
-    finalize: at(7440, 320),
-    applyStatus: at(7680, 224, dim(560, 320)), setStatus: at(232, 112),
-    writeCase: at(8480, 320), notifyNeeded: at(8720, 320),
-    notifyText: at(8960, 560), notify: at(9200, 560), notifyDone: at(9440, 560),
-    end5: at(9680, 320),
+    askCard: at(4800, 560), requesterTask: at(5040, 560), requesterDecision: at(5280, 560),
+    requesterConsolidates: at(5520, 560), requesterUnknown: at(5520, 960),
+    keepJustification: at(5520, 760), rejudge: at(5760, 760), check3: at(6000, 760), gateway2: at(6240, 760),
+    reviewNeeded: at(6480, 320),
+    reviewCard: at(6720, 600), approverReview: at(6960, 600), approverDecision: at(7200, 600),
+    decConsolidate: at(7440, 400), decApproveSeparate: at(7440, 560), decReject: at(7440, 720), decFalsePositive: at(7440, 880), decUnknown: at(7440, 1040),
+    finalize: at(7680, 320),
+    applyStatus: at(7920, 224, dim(560, 320)), setStatus: at(232, 112),
+    writeCase: at(8720, 320), notifyNeeded: at(8960, 320),
+    notifyText: at(9200, 560), notify: at(9440, 560), notifyDone: at(9680, 560),
+    end5: at(9920, 320),
   },
   // The three release lanes run above the main path and drop into "Review?" just before it.
   edges: {
-    "holdUnverified->reviewNeeded": { waypoints: [{ x: 6120, y: -192 }, { x: 6120, y: 368 }] },
-    "ruleRelease->reviewNeeded": { waypoints: [{ x: 6150, y: -32 }, { x: 6150, y: 368 }] },
-    "agentRelease->reviewNeeded": { waypoints: [{ x: 6180, y: -352 }, { x: 6180, y: 368 }] },
+    "holdUnverified->reviewNeeded": { waypoints: [{ x: 6360, y: -192 }, { x: 6360, y: 368 }] },
+    "ruleRelease->reviewNeeded": { waypoints: [{ x: 6390, y: -32 }, { x: 6390, y: 368 }] },
+    "agentRelease->reviewNeeded": { waypoints: [{ x: 6420, y: -352 }, { x: 6420, y: 368 }] },
+    // The requester's unknown-answer lane runs under the explain lane, then up into "Review?".
+    "requesterUnknown->reviewNeeded": { waypoints: [{ x: 6450, y: 1008 }, { x: 6450, y: 368 }] },
   },
 };
 
@@ -500,28 +522,27 @@ export default flow("08cdc015-6874-49a8-ac05-743f6edf1bf6")
           { label: "Agent cleared", updates: { finalPrStatus: lit("Released") } }) },
       { value: "ASK_REQUESTER", label: "Ask requester", body: (b) => b
         // 7. Requester justification, then one re-evaluation (no second ask).
-        .step("askCard", script({ code: ASK_CARD_CODE, returns: { message: "string", guide: "string", title: "string" } }), { label: "Draft question" })
-        .stepSwitch("requesterTask", hitl({
-          variant: "quick-form",
+        .step("askCard", script({ code: ASK_CARD_CODE, returns: ASK_CARD_RETURNS }), { label: "Draft question" })
+        // Coded Action App: the requester's PRs as a table, tooltips on both buttons.
+        .step("requesterTask", hitl({
+          variant: "action-app",
           title: out("askCard", "title"),
           priority: "Medium",
           labels: "SplitSentinel,Justification",
-          fields: [
-            { id: "message", label: "Why you are seeing this", type: "string", direction: "input", controlType: "textarea",
-              value: out("askCard", "message") },
-            { id: "relatedPrs", label: "Your requisitions", type: "string", direction: "input", controlType: "textarea",
-              value: out("rules", "summary") },
-            { id: "guide", label: "What each button does", type: "string", direction: "input", controlType: "textarea",
-              value: out("askCard", "guide") },
-            { id: "justification", label: "Your explanation (for Submit explanation)", type: "string", direction: "output",
-              controlType: "textarea" },
-          ],
+          app: {
+            name: EXPLAIN_APP.name,
+            key: EXPLAIN_APP.key,
+            location: "in-solution",
+            actionSchema: EXPLAIN_SCHEMA,
+            inputs: EXPLAIN_APP_INPUTS,
+          },
           outcomes: [ASK_OUTCOMES.explain, ASK_OUTCOMES.merge],
-        }), [
-          { value: ASK_OUTCOMES.merge, body: (c) => c
+        }), { label: "Requester task" })
+        .switch("requesterDecision", out("requesterTask", "Action"), [
+          { value: ASK_OUTCOMES.merge, label: "Merge my PRs", body: (c) => c
             .step("requesterConsolidates", script({ code: 'return "REQUESTER_CONSOLIDATE";' }),
               { label: "Merge PRs", updates: { finalPrStatus: lit("Consolidated"), humanDecision: lit("CONSOLIDATE"), path: lit("REQUESTER_CONSOLIDATED"), humanComment: lit("Requester chose to consolidate") } }) },
-          { value: ASK_OUTCOMES.explain, body: (e) => e
+          { value: ASK_OUTCOMES.explain, label: "Explained", body: (e) => e
             .step("keepJustification", script({ code: "return String($vars.requesterTask.output.justification || '');", returns: "string" }),
               { label: "Save answer", updates: { justification: out("keepJustification") } })
             .step("rejudge", inlineAgent({
@@ -536,7 +557,11 @@ export default flow("08cdc015-6874-49a8-ac05-743f6edf1bf6")
               { label: "Re-validate", updates: { agentResult: out("check3") } })
             .step("gateway2", script({ code: gatewayCode(false), returns: { decision: "string", path: "string" } }),
               { label: "Final guardrail", updates: { path: out("gateway2", "path"), needsReview: js`$vars.gateway2.output.decision !== 'RELEASE'` } }) },
-        ], { label: "Requester task" }) },
+        ], (other) => other
+          // Fail closed: an answer the Flow doesn't know goes to the approver.
+          .step("requesterUnknown", script({ code: "return String($vars.requesterTask.output.Action || '');", returns: "string" }),
+            { label: "Unknown: review", updates: { needsReview: lit(true), path: lit("REQUESTER_UNKNOWN") } }),
+        { label: "Requester answer" }) },
     ], (rev) => rev.step("markReview", script({ code: 'return "REVIEW";' }),
       { label: "To review", updates: { needsReview: lit(true) } }),
     { label: "Agent outcome" }),

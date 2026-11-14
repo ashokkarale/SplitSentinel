@@ -149,7 +149,8 @@ uip maestro flow debug SplitSentinel --log-level error --output json `
 ### Deploy (only when the user asks)
 ```powershell
 # from the repo root
-(cd SplitSentinel/SplitSentinelReview/source; npm ci; npm run build)   # the review app's dist/ is a build output, not committed
+(cd SplitSentinel/SplitSentinelReview/source; npm ci; npm run build)    # app dist/ folders are build outputs, not committed
+(cd SplitSentinel/SplitSentinelExplain/source; npm ci; npm run build)
 uip solution resources refresh --solution-folder SplitSentinel --output json
 uip solution pack SplitSentinel <out-dir> --version <x.y.z> --output json
 uip solution publish <out-dir>/SplitSentinel_<x.y.z>.zip --output json
@@ -206,6 +207,9 @@ Eval set **"Guardrail and failures"** (project assets under the Flow project) us
 - Branch arms carry edge labels with `.label('…')`; switch cases use `label` on the case. Human-task (`stepSwitch`) arms can't take one — the outcome name already labels the exit.
 - Canvas annotations are the `NOTES` sticky notes (`.stickyNotes(NOTES)`), one per section. They are inert.
 - Layout (`LAYOUT`, via `.layout(LAYOUT)`): main path on y=320 with 240 px columns; release outcomes in lanes above (pinned edge routes drop them into `reviewNeeded`); retry / requester / approver paths in lanes below; terminal ends in the bottom lane. Children of the loop container are positioned relative to it. Keep labels to 1–3 words so they fit under a 96 px node. After any layout change, check that no node, label area or note overlaps and that no edge crosses an unrelated node.
+
+### Explain app (coded Action App `SplitSentinelExplain`)
+- Second in-solution app for the requester step, same React base and styles as the review app. Inputs from `askCard` (message, amount, tier, `relatedPrs` table); output `justification` (Submit needs ≥ 20 characters); outcomes `SubmitExplanation`, `MergeMyPRs`. The `requesterDecision` switch routes on `out('requesterTask', 'Action')`; unknown answers go to approver review (`requesterUnknown`).
 
 ### Review app (coded Action App `SplitSentinelReview`)
 - In-solution project `SplitSentinel/SplitSentinelReview/` (created with `uip codedapp init --type Action`, registered as `AppV2`): React + TypeScript in `source/` (Vite, `base: './'`), built to `source/dist`, the bundle the solution packs. No UiPath SDK services, so no OAuth client; it only uses `@uipath/coded-action-app`.
@@ -360,9 +364,9 @@ Use PRs from the last **30 days**, with status not Draft or Rejected, excluding 
 | 5 | Agent judgement | §7 |
 | 6 | Validate | §7 post-validation (one retry, then FAILED) |
 | 7 | Gateway | See the gateway table below |
-| 8a | Requester justification | Quick-form task, outcomes `Submit explanation` / `Merge my PRs` (`ASK_OUTCOMES`), output field `justification`. (No timeout available in Flow) |
+| 8a | Requester justification | Coded Action App `SplitSentinelExplain`, outcomes `SubmitExplanation` / `MergeMyPRs` (`ASK_OUTCOMES`), output `justification`. (No timeout available in Flow) |
 | 8b | Agent re-evaluation | Same agent, with `requesterJustification` set → validate → gateway (no second justification round) |
-| 8c | Approver review | Quick-form task titled with the amount and approver. Outcomes `Merge PRs`, `Keep separate`, `Reject`, `Not a split` (`REVIEW_OUTCOMES`; short so all four fit on one row of the fixed-width card); required output field `comment`. SLA/escalation is configured in Action Center (Flow has no task timeout) |
+| 8c | Approver review | Coded Action App `SplitSentinelReview`, titled with the amount and approver. Outcomes `MergePRs`, `KeepSeparate`, `Reject`, `NotASplit` (`REVIEW_OUTCOMES`); required output `comment`. SLA/escalation is configured in Action Center (Flow has no task timeout) |
 | 9C | Consolidate | Related PRs → Consolidated; route for the correct-tier approval |
 | 9R | Release | PR → Released |
 | 9X | Reject | PR(s) → Rejected |

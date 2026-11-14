@@ -2247,11 +2247,32 @@
           },
           "var": "output",
           "properties": {
+            "prId": {
+              "type": "string"
+            },
+            "caseRef": {
+              "type": "string"
+            },
+            "requesterName": {
+              "type": "string"
+            },
             "message": {
               "type": "string"
             },
-            "guide": {
+            "combinedAmount": {
+              "type": "number"
+            },
+            "approvalTier": {
               "type": "string"
+            },
+            "approverRole": {
+              "type": "string"
+            },
+            "rfqRequired": {
+              "type": "boolean"
+            },
+            "relatedPrs": {
+              "type": "array"
             },
             "title": {
               "type": "string"
@@ -2304,12 +2325,12 @@
         }
       },
       "inputs": {
-        "script": "\n\nfunction inr(n) {\n  var s = String(Math.round(Number(n) || 0)), last3 = s.slice(-3), rest = s.slice(0, -3);\n  return '₹' + (rest ? rest.replace(/\\B(?=(\\d{2})+(?!\\d))/g, ',') + ',' : '') + last3;\n}\nfunction shortDate(iso) {\n  var m = String(iso || '').match(/^(\\d{4})-(\\d{2})-(\\d{2})/);\n  if (!m) return String(iso || '');\n  return Number(m[3]) + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(m[2]) - 1] + ' ' + m[1];\n}\nfunction roleName(r) {\n  return { LineManager: 'Line Manager', DeptHead: 'Department Head', CFO: 'CFO', CFOCommittee: 'CFO + Procurement Committee' }[r] || r || 'approver';\n}\nfunction listIds(ids) {\n  ids = ids || [];\n  return ids.length < 2 ? ids.join('') : ids.slice(0, -1).join(', ') + ' and ' + ids[ids.length - 1];\n}\n\nvar a = $vars.agentResult || {};\nvar rules = $vars.rules.output;\nvar tierRow = (rules.matrix || []).filter(function (t) { return t.tierId === a.requiredApprovalTier; })[0] || {};\nvar first = String(rules.requesterName || '').split(' ')[0] || 'there';\nreturn {\n  message: 'Hi ' + first + ', your requisitions ' + listIds(a.relatedPrIds || []) + ' look like parts of one purchase ('\n    + inr(a.combinedAmount) + ' together). Together they need ' + roleName(tierRow.approverRole) + ' approval (' + a.requiredApprovalTier + ').',\n  guide: 'Submit explanation: they are separate needs; say why below (project, site, purpose or budget). \"Urgent\" does not count.\\n'\n    + 'Merge my PRs: they are one purchase; combine them and send for the right approval.',\n  title: 'Please explain: ' + $vars.prId + ' may be a split purchase'\n};\n"
+        "script": "\n\nfunction inr(n) {\n  var s = String(Math.round(Number(n) || 0)), last3 = s.slice(-3), rest = s.slice(0, -3);\n  return '₹' + (rest ? rest.replace(/\\B(?=(\\d{2})+(?!\\d))/g, ',') + ',' : '') + last3;\n}\nfunction shortDate(iso) {\n  var m = String(iso || '').match(/^(\\d{4})-(\\d{2})-(\\d{2})/);\n  if (!m) return String(iso || '');\n  return Number(m[3]) + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(m[2]) - 1] + ' ' + m[1];\n}\nfunction roleName(r) {\n  return { LineManager: 'Line Manager', DeptHead: 'Department Head', CFO: 'CFO', CFOCommittee: 'CFO + Procurement Committee' }[r] || r || 'approver';\n}\nfunction listIds(ids) {\n  ids = ids || [];\n  return ids.length < 2 ? ids.join('') : ids.slice(0, -1).join(', ') + ' and ' + ids[ids.length - 1];\n}\n\nvar a = $vars.agentResult || {};\nvar rules = $vars.rules.output;\nvar tierRow = (rules.matrix || []).filter(function (t) { return t.tierId === a.requiredApprovalTier; })[0] || {};\nvar first = String(rules.requesterName || '').split(' ')[0] || 'there';\nvar related = a.relatedPrIds && a.relatedPrIds.length ? a.relatedPrIds : rules.groupPrIds;\n// Shaped to the explain app's action-schema.json inputs (SplitSentinelExplain).\nreturn {\n  prId: $vars.prId,\n  caseRef: ($vars.dryRun ? 'What-if · ' : '') + 'SC-' + $vars.prId,\n  requesterName: first,\n  message: 'Hi ' + first + ', your requisitions ' + listIds(related) + ' look like parts of one purchase. '\n    + 'Together they come to ' + inr(a.combinedAmount) + ', which needs ' + roleName(tierRow.approverRole) + ' approval ('\n    + a.requiredApprovalTier + '). If they really are separate needs, tell us why; otherwise merge them.',\n  combinedAmount: Number(a.combinedAmount) || 0,\n  approvalTier: a.requiredApprovalTier || '',\n  approverRole: roleName(tierRow.approverRole),\n  rfqRequired: tierRow.rfqRequired === true || String(tierRow.rfqRequired) === 'true',\n  relatedPrs: (rules.groupRows || []).filter(function (row) { return related.indexOf(row.prId) >= 0; }),\n  title: 'Please explain: ' + $vars.prId + ' may be a split purchase'\n};\n"
       }
     },
     {
       "id": "requesterTask",
-      "type": "uipath.human-in-the-loop.quick-form",
+      "type": "uipath.human-in-the-loop.coded-action-app",
       "typeVersion": "1.0",
       "ui": {
         "position": {
@@ -2347,10 +2368,10 @@
             "Action": {
               "type": "string",
               "enum": [
-                "Submit explanation",
-                "Merge my PRs"
+                "SubmitExplanation",
+                "MergeMyPRs"
               ],
-              "default": "Submit explanation"
+              "default": "SubmitExplanation"
             }
           }
         },
@@ -2364,10 +2385,10 @@
           },
           "var": "status",
           "enum": [
-            "Submit explanation",
-            "Merge my PRs"
+            "SubmitExplanation",
+            "MergeMyPRs"
           ],
-          "default": "Submit explanation"
+          "default": "SubmitExplanation"
         }
       },
       "inputs": {
@@ -2380,61 +2401,81 @@
         "labels": "SplitSentinel,Justification",
         "recipient": {
           "channels": [
-            "Email",
             "ActionCenter"
           ],
-          "connections": {},
           "assignee": {
-            "type": "group"
+            "type": "user"
           }
         },
+        "app": {
+          "displayName": "SplitSentinelExplain",
+          "name": "SplitSentinelExplain",
+          "key": "a10fac45-01a7-4a05-b87b-577eb26556d4",
+          "folderPath": "",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "prId": {
+                "type": "string"
+              },
+              "caseRef": {
+                "type": "string"
+              },
+              "requesterName": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "combinedAmount": {
+                "type": "number"
+              },
+              "approvalTier": {
+                "type": "string"
+              },
+              "approverRole": {
+                "type": "string"
+              },
+              "rfqRequired": {
+                "type": "boolean"
+              },
+              "relatedPrs": {
+                "type": "array",
+                "items": {
+                  "type": "System.Object"
+                }
+              }
+            },
+            "required": [
+              "prId"
+            ]
+          }
+        },
+        "appInputBindings": {
+          "prId": "=vars.askCard.output.prId",
+          "caseRef": "=vars.askCard.output.caseRef",
+          "requesterName": "=vars.askCard.output.requesterName",
+          "message": "=vars.askCard.output.message",
+          "combinedAmount": "=vars.askCard.output.combinedAmount",
+          "approvalTier": "=vars.askCard.output.approvalTier",
+          "approverRole": "=vars.askCard.output.approverRole",
+          "rfqRequired": "=vars.askCard.output.rfqRequired",
+          "relatedPrs": "=vars.askCard.output.relatedPrs"
+        },
         "schema": {
-          "schemaId": "ca0992f5-e6af-5b1a-9b72-a678f34a8b49",
-          "fields": [
-            {
-              "id": "message",
-              "label": "Why you are seeing this",
-              "type": "string",
-              "direction": "input",
-              "binding": "vars.askCard.output.message",
-              "controlType": "textarea"
-            },
-            {
-              "id": "relatedPrs",
-              "label": "Your requisitions",
-              "type": "string",
-              "direction": "input",
-              "binding": "vars.rules.output.summary",
-              "controlType": "textarea"
-            },
-            {
-              "id": "guide",
-              "label": "What each button does",
-              "type": "string",
-              "direction": "input",
-              "binding": "vars.askCard.output.guide",
-              "controlType": "textarea"
-            },
-            {
-              "id": "justification",
-              "label": "Your explanation (for Submit explanation)",
-              "type": "string",
-              "direction": "output",
-              "variable": "vars.justification",
-              "controlType": "textarea"
-            }
-          ],
+          "schemaId": "c9dcf21d-8a10-5050-b8e0-dcdfea4c8b66",
+          "fields": [],
           "outcomes": [
             {
-              "id": "submit-explanation",
-              "name": "Submit explanation",
+              "id": "submitexplanation",
+              "name": "SubmitExplanation",
               "type": "string",
               "isPrimary": true,
               "action": "Continue"
             },
             {
-              "id": "merge-my-prs",
-              "name": "Merge my PRs",
+              "id": "mergemyprs",
+              "name": "MergeMyPRs",
               "type": "string",
               "isPrimary": false,
               "action": "Continue"
@@ -2444,12 +2485,50 @@
       }
     },
     {
+      "id": "requesterDecision",
+      "type": "core.logic.switch",
+      "typeVersion": "1.0.0",
+      "ui": {
+        "position": {
+          "x": 5280,
+          "y": 560
+        },
+        "size": {
+          "width": 96,
+          "height": 96
+        },
+        "collapsed": false
+      },
+      "display": {
+        "label": "Requester answer",
+        "icon": "between-horizontal-start"
+      },
+      "model": {
+        "type": "bpmn:ExclusiveGateway"
+      },
+      "inputs": {
+        "cases": [
+          {
+            "id": "case_1",
+            "label": "Merge my PRs",
+            "expression": "$vars.requesterTask.output.Action === \"MergeMyPRs\""
+          },
+          {
+            "id": "case_2",
+            "label": "Explained",
+            "expression": "$vars.requesterTask.output.Action === \"SubmitExplanation\""
+          }
+        ],
+        "hasDefault": true
+      }
+    },
+    {
       "id": "requesterConsolidates",
       "type": "core.action.script",
       "typeVersion": "1.0.0",
       "ui": {
         "position": {
-          "x": 5280,
+          "x": 5520,
           "y": 560
         },
         "size": {
@@ -2531,7 +2610,7 @@
       "typeVersion": "1.0.0",
       "ui": {
         "position": {
-          "x": 5280,
+          "x": 5520,
           "y": 760
         },
         "size": {
@@ -2613,7 +2692,7 @@
       "typeVersion": "1.4",
       "ui": {
         "position": {
-          "x": 5520,
+          "x": 5760,
           "y": 760
         },
         "size": {
@@ -2788,7 +2867,7 @@
       "typeVersion": "1.0.0",
       "ui": {
         "position": {
-          "x": 5760,
+          "x": 6000,
           "y": 760
         },
         "size": {
@@ -2870,7 +2949,7 @@
       "typeVersion": "1.0.0",
       "ui": {
         "position": {
-          "x": 6000,
+          "x": 6240,
           "y": 760
         },
         "size": {
@@ -2952,6 +3031,88 @@
       },
       "inputs": {
         "script": "\nvar r = $vars.agentResult || {};\nvar score = $vars.rules.output.score;\nif (r.verdict === 'NOT_SPLIT' && r.legitException !== 'NONE' && score < 60) return { decision: 'RELEASE', path: 'AGENT_RELEASE' };\nif (false && r.verdict === 'LIKELY_SPLIT' && r.suggestedAction === 'ASK_REQUESTER') return { decision: 'ASK_REQUESTER', path: 'ASK_REQUESTER' };\nvar guard = r.verdict === 'NOT_SPLIT';\nreturn { decision: 'REVIEW', path: guard ? 'GUARDRAIL_REVIEW' : (r.verdict === 'FAILED' ? 'FAILED_REVIEW' : 'APPROVER_REVIEW') };\n"
+      }
+    },
+    {
+      "id": "requesterUnknown",
+      "type": "core.action.script",
+      "typeVersion": "1.0.0",
+      "ui": {
+        "position": {
+          "x": 5520,
+          "y": 960
+        },
+        "size": {
+          "width": 96,
+          "height": 96
+        },
+        "collapsed": false
+      },
+      "display": {
+        "label": "Unknown: review",
+        "icon": "code"
+      },
+      "model": {
+        "type": "bpmn:ScriptTask"
+      },
+      "outputs": {
+        "output": {
+          "type": "string",
+          "description": "The return value of the script",
+          "source": {
+            "type": "literal",
+            "expression": "=result.response",
+            "fieldType": "string"
+          },
+          "var": "output"
+        },
+        "error": {
+          "type": "object",
+          "description": "Error information if the script fails",
+          "source": {
+            "type": "literal",
+            "expression": "=result.Error",
+            "fieldType": "string"
+          },
+          "var": "error",
+          "schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "detail",
+              "category",
+              "status"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Error code as a string"
+              },
+              "message": {
+                "type": "string",
+                "description": "High-level error message"
+              },
+              "detail": {
+                "type": "string",
+                "description": "Detailed error description"
+              },
+              "category": {
+                "type": "string",
+                "description": "Error category"
+              },
+              "status": {
+                "type": "integer",
+                "description": "HTTP status code"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "inputs": {
+        "script": "return String($vars.requesterTask.output.Action || '');"
       }
     },
     {
@@ -3042,7 +3203,7 @@
       "typeVersion": "1.0.0",
       "ui": {
         "position": {
-          "x": 6240,
+          "x": 6480,
           "y": 320
         },
         "size": {
@@ -3070,7 +3231,7 @@
       "typeVersion": "1.0.0",
       "ui": {
         "position": {
-          "x": 6480,
+          "x": 6720,
           "y": 600
         },
         "size": {
@@ -3217,7 +3378,7 @@
       "typeVersion": "1.0",
       "ui": {
         "position": {
-          "x": 6720,
+          "x": 6960,
           "y": 600
         },
         "size": {
@@ -3438,7 +3599,7 @@
       "typeVersion": "1.0.0",
       "ui": {
         "position": {
-          "x": 6960,
+          "x": 7200,
           "y": 600
         },
         "size": {
@@ -3486,7 +3647,7 @@
       "typeVersion": "1.0.0",
       "ui": {
         "position": {
-          "x": 7200,
+          "x": 7440,
           "y": 400
         },
         "size": {
@@ -3568,7 +3729,7 @@
       "typeVersion": "1.0.0",
       "ui": {
         "position": {
-          "x": 7200,
+          "x": 7440,
           "y": 560
         },
         "size": {
@@ -3650,7 +3811,7 @@
       "typeVersion": "1.0.0",
       "ui": {
         "position": {
-          "x": 7200,
+          "x": 7440,
           "y": 720
         },
         "size": {
@@ -3732,7 +3893,7 @@
       "typeVersion": "1.0.0",
       "ui": {
         "position": {
-          "x": 7200,
+          "x": 7440,
           "y": 880
         },
         "size": {
@@ -3814,7 +3975,7 @@
       "typeVersion": "1.0.0",
       "ui": {
         "position": {
-          "x": 7200,
+          "x": 7440,
           "y": 1040
         },
         "size": {
@@ -3896,7 +4057,7 @@
       "typeVersion": "1.0.0",
       "ui": {
         "position": {
-          "x": 7440,
+          "x": 7680,
           "y": 320
         },
         "size": {
@@ -3978,7 +4139,7 @@
       "typeVersion": "2.4",
       "ui": {
         "position": {
-          "x": 7680,
+          "x": 7920,
           "y": 224
         },
         "size": {
@@ -4150,7 +4311,7 @@
       "typeVersion": "1.3",
       "ui": {
         "position": {
-          "x": 8480,
+          "x": 8720,
           "y": 320
         },
         "size": {
@@ -4261,7 +4422,7 @@
       "typeVersion": "1.0.0",
       "ui": {
         "position": {
-          "x": 8720,
+          "x": 8960,
           "y": 320
         },
         "size": {
@@ -4289,7 +4450,7 @@
       "typeVersion": "1.0.0",
       "ui": {
         "position": {
-          "x": 8960,
+          "x": 9200,
           "y": 560
         },
         "size": {
@@ -4385,7 +4546,7 @@
       "typeVersion": "1.0.0",
       "ui": {
         "position": {
-          "x": 9200,
+          "x": 9440,
           "y": 560
         },
         "size": {
@@ -4575,7 +4736,7 @@
       "typeVersion": "1.0.0",
       "ui": {
         "position": {
-          "x": 9440,
+          "x": 9680,
           "y": 560
         },
         "size": {
@@ -4657,7 +4818,7 @@
       "typeVersion": "1.0.0",
       "ui": {
         "position": {
-          "x": 9680,
+          "x": 9920,
           "y": 320
         },
         "size": {
@@ -5240,7 +5401,7 @@
       "display": {},
       "inputs": {
         "color": "yellow",
-        "content": "REQUESTER JUSTIFICATION (one round)\nOn mixed evidence the requester can explain or consolidate.\nThe agent re-judges with the explanation; vague reasons (\"urgent\") don't count."
+        "content": "REQUESTER EXPLANATION (coded Action App SplitSentinelExplain, one round)\nOn mixed evidence the requester sees their PRs as a table and can explain or merge.\nThe agent re-judges with the explanation; vague reasons (\"urgent\") don't count."
       }
     },
     {
@@ -5249,7 +5410,7 @@
       "typeVersion": "1.0.0",
       "ui": {
         "position": {
-          "x": 6420,
+          "x": 6660,
           "y": 820
         },
         "size": {
@@ -5269,7 +5430,7 @@
       "typeVersion": "1.0.0",
       "ui": {
         "position": {
-          "x": 8480,
+          "x": 8720,
           "y": 60
         },
         "size": {
@@ -5289,7 +5450,7 @@
       "typeVersion": "1.0.0",
       "ui": {
         "position": {
-          "x": 8960,
+          "x": 9200,
           "y": 760
         },
         "size": {
@@ -5497,299 +5658,320 @@
     {
       "id": "edge_27",
       "sourceNodeId": "requesterTask",
-      "sourcePort": "outcome-merge-my-prs",
-      "targetNodeId": "requesterConsolidates",
+      "sourcePort": "completed",
+      "targetNodeId": "requesterDecision",
       "targetPort": "input"
     },
     {
       "id": "edge_28",
-      "sourceNodeId": "requesterTask",
-      "sourcePort": "outcome-submit-explanation",
-      "targetNodeId": "keepJustification",
+      "sourceNodeId": "requesterDecision",
+      "sourcePort": "case-case_1",
+      "targetNodeId": "requesterConsolidates",
       "targetPort": "input"
     },
     {
       "id": "edge_29",
+      "sourceNodeId": "requesterDecision",
+      "sourcePort": "case-case_2",
+      "targetNodeId": "keepJustification",
+      "targetPort": "input"
+    },
+    {
+      "id": "edge_30",
       "sourceNodeId": "keepJustification",
       "sourcePort": "success",
       "targetNodeId": "rejudge",
       "targetPort": "input"
     },
     {
-      "id": "edge_30",
+      "id": "edge_31",
       "sourceNodeId": "rejudge",
       "sourcePort": "success",
       "targetNodeId": "check3",
       "targetPort": "input"
     },
     {
-      "id": "edge_31",
+      "id": "edge_32",
       "sourceNodeId": "check3",
       "sourcePort": "success",
       "targetNodeId": "gateway2",
       "targetPort": "input"
     },
     {
-      "id": "edge_32",
+      "id": "edge_33",
+      "sourceNodeId": "requesterDecision",
+      "sourcePort": "default",
+      "targetNodeId": "requesterUnknown",
+      "targetPort": "input"
+    },
+    {
+      "id": "edge_34",
       "sourceNodeId": "decision",
       "sourcePort": "default",
       "targetNodeId": "markReview",
       "targetPort": "input"
     },
     {
-      "id": "edge_33",
+      "id": "edge_35",
       "sourceNodeId": "ruleRelease",
       "sourcePort": "success",
       "targetNodeId": "reviewNeeded",
       "targetPort": "input"
     },
     {
-      "id": "edge_34",
+      "id": "edge_36",
       "sourceNodeId": "holdUnverified",
       "sourcePort": "success",
       "targetNodeId": "reviewNeeded",
       "targetPort": "input"
     },
     {
-      "id": "edge_35",
+      "id": "edge_37",
       "sourceNodeId": "agentRelease",
       "sourcePort": "success",
       "targetNodeId": "reviewNeeded",
       "targetPort": "input"
     },
     {
-      "id": "edge_36",
+      "id": "edge_38",
       "sourceNodeId": "requesterConsolidates",
       "sourcePort": "success",
       "targetNodeId": "reviewNeeded",
       "targetPort": "input"
     },
     {
-      "id": "edge_37",
+      "id": "edge_39",
       "sourceNodeId": "gateway2",
       "sourcePort": "success",
       "targetNodeId": "reviewNeeded",
       "targetPort": "input"
     },
     {
-      "id": "edge_38",
+      "id": "edge_40",
+      "sourceNodeId": "requesterUnknown",
+      "sourcePort": "success",
+      "targetNodeId": "reviewNeeded",
+      "targetPort": "input"
+    },
+    {
+      "id": "edge_41",
       "sourceNodeId": "markReview",
       "sourcePort": "success",
       "targetNodeId": "reviewNeeded",
       "targetPort": "input"
     },
     {
-      "id": "edge_39",
+      "id": "edge_42",
       "sourceNodeId": "reviewNeeded",
       "sourcePort": "true",
       "targetNodeId": "reviewCard",
       "targetPort": "input"
     },
     {
-      "id": "edge_40",
+      "id": "edge_43",
       "sourceNodeId": "reviewCard",
       "sourcePort": "success",
       "targetNodeId": "approverReview",
       "targetPort": "input"
     },
     {
-      "id": "edge_41",
+      "id": "edge_44",
       "sourceNodeId": "approverReview",
       "sourcePort": "completed",
       "targetNodeId": "approverDecision",
       "targetPort": "input"
     },
     {
-      "id": "edge_42",
+      "id": "edge_45",
       "sourceNodeId": "approverDecision",
       "sourcePort": "case-case_1",
       "targetNodeId": "decConsolidate",
       "targetPort": "input"
     },
     {
-      "id": "edge_43",
+      "id": "edge_46",
       "sourceNodeId": "approverDecision",
       "sourcePort": "case-case_2",
       "targetNodeId": "decApproveSeparate",
       "targetPort": "input"
     },
     {
-      "id": "edge_44",
+      "id": "edge_47",
       "sourceNodeId": "approverDecision",
       "sourcePort": "case-case_3",
       "targetNodeId": "decReject",
       "targetPort": "input"
     },
     {
-      "id": "edge_45",
+      "id": "edge_48",
       "sourceNodeId": "approverDecision",
       "sourcePort": "case-case_4",
       "targetNodeId": "decFalsePositive",
       "targetPort": "input"
     },
     {
-      "id": "edge_46",
+      "id": "edge_49",
       "sourceNodeId": "approverDecision",
       "sourcePort": "default",
       "targetNodeId": "decUnknown",
       "targetPort": "input"
     },
     {
-      "id": "edge_47",
+      "id": "edge_50",
       "sourceNodeId": "decConsolidate",
       "sourcePort": "success",
       "targetNodeId": "finalize",
       "targetPort": "input"
     },
     {
-      "id": "edge_48",
+      "id": "edge_51",
       "sourceNodeId": "decApproveSeparate",
       "sourcePort": "success",
       "targetNodeId": "finalize",
       "targetPort": "input"
     },
     {
-      "id": "edge_49",
+      "id": "edge_52",
       "sourceNodeId": "decReject",
       "sourcePort": "success",
       "targetNodeId": "finalize",
       "targetPort": "input"
     },
     {
-      "id": "edge_50",
+      "id": "edge_53",
       "sourceNodeId": "decFalsePositive",
       "sourcePort": "success",
       "targetNodeId": "finalize",
       "targetPort": "input"
     },
     {
-      "id": "edge_51",
+      "id": "edge_54",
       "sourceNodeId": "decUnknown",
       "sourcePort": "success",
       "targetNodeId": "finalize",
       "targetPort": "input"
     },
     {
-      "id": "edge_52",
+      "id": "edge_55",
       "sourceNodeId": "reviewNeeded",
       "sourcePort": "false",
       "targetNodeId": "finalize",
       "targetPort": "input"
     },
     {
-      "id": "edge_53",
+      "id": "edge_56",
       "sourceNodeId": "finalize",
       "sourcePort": "success",
       "targetNodeId": "applyStatus",
       "targetPort": "input"
     },
     {
-      "id": "edge_54",
+      "id": "edge_57",
       "sourceNodeId": "applyStatus",
       "sourcePort": "start",
       "targetNodeId": "setStatus",
       "targetPort": "input"
     },
     {
-      "id": "edge_55",
+      "id": "edge_58",
       "sourceNodeId": "setStatus",
       "sourcePort": "output",
       "targetNodeId": "applyStatus",
       "targetPort": "continue"
     },
     {
-      "id": "edge_56",
+      "id": "edge_59",
       "sourceNodeId": "applyStatus",
       "sourcePort": "success",
       "targetNodeId": "writeCase",
       "targetPort": "input"
     },
     {
-      "id": "edge_57",
+      "id": "edge_60",
       "sourceNodeId": "writeCase",
       "sourcePort": "output",
       "targetNodeId": "notifyNeeded",
       "targetPort": "input"
     },
     {
-      "id": "edge_58",
+      "id": "edge_61",
       "sourceNodeId": "notifyNeeded",
       "sourcePort": "true",
       "targetNodeId": "notifyText",
       "targetPort": "input"
     },
     {
-      "id": "edge_59",
+      "id": "edge_62",
       "sourceNodeId": "notifyText",
       "sourcePort": "success",
       "targetNodeId": "notify",
       "targetPort": "input"
     },
     {
-      "id": "edge_60",
+      "id": "edge_63",
       "sourceNodeId": "notify",
       "sourcePort": "output",
       "targetNodeId": "notifyDone",
       "targetPort": "input"
     },
     {
-      "id": "edge_61",
+      "id": "edge_64",
       "sourceNodeId": "notifyDone",
       "sourcePort": "success",
       "targetNodeId": "end5",
       "targetPort": "input"
     },
     {
-      "id": "edge_62",
+      "id": "edge_65",
       "sourceNodeId": "notifyNeeded",
       "sourcePort": "false",
       "targetNodeId": "end5",
       "targetPort": "input"
     },
     {
-      "id": "edge_63",
+      "id": "edge_66",
       "sourceNodeId": "onPrCreated",
       "sourcePort": "output",
       "targetNodeId": "createdPr",
       "targetPort": "input"
     },
     {
-      "id": "edge_64",
+      "id": "edge_67",
       "sourceNodeId": "createdPr",
       "sourcePort": "output",
       "targetNodeId": "fromEvent",
       "targetPort": "input"
     },
     {
-      "id": "edge_65",
+      "id": "edge_68",
       "sourceNodeId": "fromEvent",
       "sourcePort": "success",
       "targetNodeId": "resolveRun",
       "targetPort": "input"
     },
     {
-      "id": "edge_66",
+      "id": "edge_69",
       "sourceNodeId": "judge",
       "sourcePort": "error",
       "targetNodeId": "check1",
       "targetPort": "input"
     },
     {
-      "id": "edge_67",
+      "id": "edge_70",
       "sourceNodeId": "judgeRetry",
       "sourcePort": "error",
       "targetNodeId": "check2",
       "targetPort": "input"
     },
     {
-      "id": "edge_68",
+      "id": "edge_71",
       "sourceNodeId": "rejudge",
       "sourcePort": "error",
       "targetNodeId": "check3",
       "targetPort": "input"
     },
     {
-      "id": "edge_69",
+      "id": "edge_72",
       "sourceNodeId": "notify",
       "sourcePort": "error",
       "targetNodeId": "notifyDone",
@@ -6813,101 +6995,6 @@
       },
       "debug": {
         "runtime": "bpmnEngine"
-      }
-    },
-    {
-      "nodeType": "uipath.human-in-the-loop.quick-form",
-      "version": "1.0",
-      "category": "human-task",
-      "tags": [
-        "human-task",
-        "hitl",
-        "human-in-the-loop",
-        "quick-form",
-        "approval"
-      ],
-      "sortOrder": 27,
-      "display": {
-        "label": "Quick Form",
-        "icon": "users",
-        "shape": "square"
-      },
-      "handleConfiguration": [
-        {
-          "position": "left",
-          "handles": [
-            {
-              "id": "input",
-              "type": "target",
-              "handleType": "input"
-            }
-          ],
-          "visible": true
-        },
-        {
-          "position": "right",
-          "handles": [
-            {
-              "id": "completed",
-              "type": "source",
-              "handleType": "output",
-              "showButton": true,
-              "constraints": {
-                "forbiddenTargetCategories": [
-                  "trigger"
-                ]
-              }
-            }
-          ],
-          "visible": true
-        }
-      ],
-      "model": {
-        "type": "bpmn:UserTask",
-        "serviceType": "Actions.HITL"
-      },
-      "inputDefaults": {
-        "schema": {
-          "fields": [],
-          "outcomes": [
-            {
-              "id": "submit",
-              "name": "Submit",
-              "type": "string",
-              "isPrimary": true,
-              "action": "Continue"
-            }
-          ]
-        },
-        "recipient": {
-          "channels": [
-            "Email",
-            "ActionCenter"
-          ],
-          "connections": {},
-          "assignee": {
-            "type": "group"
-          }
-        }
-      },
-      "outputDefinition": {
-        "output": {
-          "type": "object",
-          "description": "Task result data",
-          "source": "=result",
-          "var": "output"
-        },
-        "status": {
-          "type": "string",
-          "description": "Task completion status (completed, cancelled, timeout)",
-          "source": "=result.Action",
-          "var": "status"
-        }
-      },
-      "runtimeConstraints": {
-        "exclude": [
-          "api-function"
-        ]
       }
     },
     {
@@ -9874,6 +9961,58 @@
         }
       },
       {
+        "id": "requesterUnknown.output",
+        "type": "string",
+        "description": "The return value of the script",
+        "binding": {
+          "nodeId": "requesterUnknown",
+          "outputId": "output"
+        }
+      },
+      {
+        "id": "requesterUnknown.error",
+        "type": "object",
+        "description": "Error information if the script fails",
+        "schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "required": [
+            "code",
+            "message",
+            "detail",
+            "category",
+            "status"
+          ],
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Error code as a string"
+            },
+            "message": {
+              "type": "string",
+              "description": "High-level error message"
+            },
+            "detail": {
+              "type": "string",
+              "description": "Detailed error description"
+            },
+            "category": {
+              "type": "string",
+              "description": "Error category"
+            },
+            "status": {
+              "type": "integer",
+              "description": "HTTP status code"
+            }
+          },
+          "additionalProperties": false
+        },
+        "binding": {
+          "nodeId": "requesterUnknown",
+          "outputId": "error"
+        }
+      },
+      {
         "id": "markReview.output",
         "type": "string",
         "description": "The return value of the script",
@@ -10933,6 +11072,24 @@
           }
         }
       ],
+      "requesterUnknown": [
+        {
+          "variableId": "needsReview",
+          "expression": {
+            "type": "jsExpression",
+            "expression": "true",
+            "fieldType": "boolean"
+          }
+        },
+        {
+          "variableId": "pathValue",
+          "expression": {
+            "type": "jsExpression",
+            "expression": "\"REQUESTER_UNKNOWN\"",
+            "fieldType": "string"
+          }
+        }
+      ],
       "markReview": [
         {
           "variableId": "needsReview",
@@ -11097,30 +11254,16 @@
   "layout": {
     "nodes": {},
     "edges": {
-      "edge_34": {
+      "edge_36": {
         "waypoints": [
           {
             "id": "wp_1",
-            "x": 6120,
+            "x": 6360,
             "y": -192
           },
           {
             "id": "wp_2",
-            "x": 6120,
-            "y": 368
-          }
-        ]
-      },
-      "edge_33": {
-        "waypoints": [
-          {
-            "id": "wp_3",
-            "x": 6150,
-            "y": -32
-          },
-          {
-            "id": "wp_4",
-            "x": 6150,
+            "x": 6360,
             "y": 368
           }
         ]
@@ -11128,13 +11271,41 @@
       "edge_35": {
         "waypoints": [
           {
+            "id": "wp_3",
+            "x": 6390,
+            "y": -32
+          },
+          {
+            "id": "wp_4",
+            "x": 6390,
+            "y": 368
+          }
+        ]
+      },
+      "edge_37": {
+        "waypoints": [
+          {
             "id": "wp_5",
-            "x": 6180,
+            "x": 6420,
             "y": -352
           },
           {
             "id": "wp_6",
-            "x": 6180,
+            "x": 6420,
+            "y": 368
+          }
+        ]
+      },
+      "edge_40": {
+        "waypoints": [
+          {
+            "id": "wp_7",
+            "x": 6450,
+            "y": 1008
+          },
+          {
+            "id": "wp_8",
+            "x": 6450,
             "y": 368
           }
         ]
@@ -11142,6 +11313,24 @@
     }
   },
   "bindings": [
+    {
+      "id": "bSplitSentinelExplainName",
+      "name": "name",
+      "type": "string",
+      "resource": "app",
+      "resourceKey": "SplitSentinelExplain",
+      "default": "SplitSentinelExplain",
+      "propertyAttribute": "name"
+    },
+    {
+      "id": "bSplitSentinelExplainFolderPath",
+      "name": "folderPath",
+      "type": "string",
+      "resource": "app",
+      "resourceKey": "SplitSentinelExplain",
+      "default": "",
+      "propertyAttribute": "folderPath"
+    },
     {
       "id": "bSplitSentinelReviewName",
       "name": "name",

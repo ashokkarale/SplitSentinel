@@ -98,7 +98,9 @@ Types follow the Data Fabric UI-safe set: `DECIMAL` (precision 0 for whole numbe
 | PR-2092 | Event-trigger test (processed automatically after deploy) |
 | PR-2093 | Event-trigger test after the v1.0.1 upgrade |
 | PR-2094 | Event-trigger test after the v1.0.2 upgrade |
-| PR-2101, PR-2102 | Demo split history (Released), see `data/demo/` |
+| PR-2101, PR-2102 | Demo split history, see `data/demo/` |
+| PR-2103 | Demo split, reviewed by the user (Approve separately) |
+| PR-2104 | Coded Action App test on v1.0.3 (Rejected with all related PRs) |
 
 ## Loading seed data
 
