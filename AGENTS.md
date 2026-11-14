@@ -237,7 +237,7 @@ Eval set **"Guardrail and failures"** (project assets under the Flow project) us
 - Data Fabric rejects `''` for a `DATETIME_WITH_TZ` field at run time.
 - Maestro Flow human tasks have **no timeout or SLA**. SLA escalation lives in Action Center, not the Flow.
 
-**Existing tenant connections (both default and enabled):** UiPath Data Fabric (`uipath-uipath-dataservice`) and Gmail (`uipath-google-gmail`).
+**Existing tenant connections (in the `Shared` folder, enabled):** "SplitSentinel Data Fabric" (`uipath-uipath-dataservice`) and "Gmail Connection" (`uipath-google-gmail`). The Personal Workspace copies were deleted on 2026-11-14, so a `flow debug` run (which runs in the Personal Workspace) needs its connection bindings pointed at these, or a connection created there for testing.
 
 ---
 
