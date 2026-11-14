@@ -97,6 +97,8 @@ Types follow the Data Fabric UI-safe set: `DECIMAL` (precision 0 for whole numbe
 | PR-2091 | Gmail draft test (manual real run) |
 | PR-2092 | Event-trigger test (processed automatically after deploy) |
 | PR-2093 | Event-trigger test after the v1.0.1 upgrade |
+| PR-2094 | Event-trigger test after the v1.0.2 upgrade |
+| PR-2101, PR-2102 | Demo split history (Released), see `data/demo/` |
 
 ## Loading seed data
 
