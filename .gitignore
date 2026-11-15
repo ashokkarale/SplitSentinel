@@ -23,3 +23,7 @@ Thumbs.db
 
 # Troubleshooting captures
 .local/
+
+# Docs folder: local working files (video script, brand assets).
+# Files already tracked here (architecture, build log, evaluation results) stay tracked.
+docs/
