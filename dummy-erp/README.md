@@ -9,7 +9,7 @@ creates, through its Data Fabric "record created" trigger, as it would with a re
 
 | Screen | Purpose |
 |---|---|
-| Requisitions | PR list, newest first, 25 per page, with status and the approval case id |
+| Requisitions | PR list, 25 per page, newest first by default; sort by PR, created, description, amount, status or case (server-side, across all pages) |
 | New requisition → Enter one | Form with every entity field. Requester fills the cost centre, vendor fills the category, amount defaults to quantity × unit price, PR number defaults to the next free one |
 | New requisition → Upload CSV | Template download, upload, row-by-row check, then import of the valid rows with a per-row result |
 

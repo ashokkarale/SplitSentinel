@@ -12,6 +12,14 @@ export const PR_ENTITY = { name: 'PurchaseRequisition' };
 
 type Row = Record<string, unknown>;
 
+/** Server-side sort for the PR list. Fields are entity field names. */
+export interface PrSort {
+  field: 'prId' | 'createdAt' | 'description' | 'amount' | 'status' | 'splitCaseId';
+  desc: boolean;
+}
+
+export const DEFAULT_SORT: PrSort = { field: 'createdAt', desc: true };
+
 export interface PrPage {
   items: PurchaseRequisition[];
   totalCount: number;
@@ -74,10 +82,12 @@ export function createErp(sdk: UiPath) {
       return new Set(rows.map((r) => str(r.prId).toUpperCase()));
     },
 
-    /** One page of PRs, newest first. */
-    async listPrs(pageSize: number, cursor?: PaginationCursor): Promise<PrPage> {
+    /** One page of PRs in the given order. prId breaks ties so pages never overlap or skip. */
+    async listPrs(pageSize: number, cursor?: PaginationCursor, sort: PrSort = DEFAULT_SORT): Promise<PrPage> {
+      const sortOptions = [{ fieldName: sort.field, isDescending: sort.desc }];
+      if (sort.field !== 'prId') sortOptions.push({ fieldName: 'prId', isDescending: sort.desc });
       const page = await query(PR_ENTITY.name, {
-        pageSize, sortOptions: [{ fieldName: 'createdAt', isDescending: true }], ...(cursor ? { cursor } : {}),
+        pageSize, sortOptions, ...(cursor ? { cursor } : {}),
       } as EntityQueryRecordsOptions & { pageSize: number });
       return {
         items: (page.items as Row[]).map(toPr),

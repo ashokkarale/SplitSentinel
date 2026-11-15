@@ -48,7 +48,7 @@ function Shell() {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="bg-slate-800 text-white">
-        <div className="mx-auto max-w-6xl px-4 flex flex-wrap items-center gap-x-6 gap-y-2 py-2">
+        <div className="mx-auto max-w-7xl px-4 flex flex-wrap items-center gap-x-6 gap-y-2 py-2">
           <div className="flex items-center gap-2 py-1">
             <span className="grid h-7 w-7 place-items-center rounded bg-brand-600 text-sm font-bold">O</span>
             <span className="font-semibold tracking-tight">Open ERP</span>
@@ -73,7 +73,7 @@ function Shell() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">
         {loadError && (
           <div className="panel mb-4 border-red-200 bg-red-50 p-3 text-sm text-red-800">
             Could not load employees, vendors or PR numbers: {loadError}
